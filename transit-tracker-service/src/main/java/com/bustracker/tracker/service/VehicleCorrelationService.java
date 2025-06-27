@@ -24,6 +24,10 @@ public class VehicleCorrelationService {
   // Maximum distance to consider a bus as "approaching" a stop (in meters)
   private static final double MAX_APPROACH_DISTANCE_M = 3000.0; // 3km
 
+  // Minimum distance/ETA to show meaningful results (filter out buses at/past stop)
+  private static final double MIN_MEANINGFUL_DISTANCE_M = 50.0; // 50m
+  private static final int MIN_MEANINGFUL_ETA_SECONDS = 30; // 30 seconds
+
   // Maximum age of vehicle position data to consider (in seconds)
   private static final long MAX_POSITION_AGE_SECONDS = 300; // 5 minutes
 
@@ -78,11 +82,12 @@ public class VehicleCorrelationService {
           return new ApproachingVehicle(vehicle, targetStop, etaResult);
         })
         .filter(av -> av.getEtaResult().getDistanceMeters() <= MAX_APPROACH_DISTANCE_M)
+        .filter(this::isMeaningfulArrival)
         .sorted((a, b) -> Double.compare(a.getEtaResult().getDistanceMeters(), b.getEtaResult().getDistanceMeters()))
         .collect(Collectors.toList());
 
-    logger.info("✅ Found {} vehicles approaching stop {} within {}km",
-        approachingVehicles.size(), targetStop.getStopName(), MAX_APPROACH_DISTANCE_M / 1000);
+    logger.info("✅ Found {} meaningful vehicles approaching stop {} (filtered from {} total vehicles on route)",
+        approachingVehicles.size(), targetStop.getStopName(), routeVehicles.size());
 
     return approachingVehicles;
   }
@@ -105,6 +110,29 @@ public class VehicleCorrelationService {
     }
 
     return isFresh;
+  }
+
+  /**
+   * Check if vehicle arrival information is meaningful to display to users
+   * Filters out vehicles that are essentially at the stop or have passed it
+   * @param approachingVehicle Vehicle with ETA information
+   * @return true if arrival info is meaningful
+   */
+  private boolean isMeaningfulArrival(ApproachingVehicle approachingVehicle) {
+    var etaResult = approachingVehicle.getEtaResult();
+    double distance = etaResult.getDistanceMeters();
+    int etaSeconds = etaResult.getEtaSeconds();
+    
+    // Filter out vehicles that are too close or have very short ETA
+    boolean isMeaningful = distance >= MIN_MEANINGFUL_DISTANCE_M || etaSeconds >= MIN_MEANINGFUL_ETA_SECONDS;
+    
+    if (!isMeaningful) {
+      logger.debug("🚫 Filtering out vehicle {} - too close: {}m, {}s", 
+          approachingVehicle.getVehicle().getVehicleId(), 
+          Math.round(distance), etaSeconds);
+    }
+    
+    return isMeaningful;
   }
 
   /**

@@ -6,6 +6,8 @@ import com.bustracker.tracker.domain.Trip;
 import com.bustracker.tracker.domain.StopTime;
 import com.bustracker.tracker.domain.ShapePoint;
 import com.bustracker.tracker.domain.DirectionName;
+import com.bustracker.tracker.domain.Calendar;
+import com.bustracker.tracker.domain.CalendarDate;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -105,11 +107,12 @@ public class GtfsFileLoader {
         try {
           String tripId = record.get("trip_id");
           String routeId = record.get("route_id");
+          String serviceId = record.get("service_id");
           String shapeId = record.isSet("shape_id") ? record.get("shape_id") : null;
           int directionId = Integer.parseInt(record.get("direction_id"));
           String tripHeadsign = record.isSet("trip_headsign") ? record.get("trip_headsign") : null;
 
-          Trip trip = new Trip(tripId, routeId, shapeId, directionId, tripHeadsign);
+          Trip trip = new Trip(tripId, routeId, serviceId, shapeId, directionId, tripHeadsign);
           trips.add(trip);
 
         } catch (Exception e) {
@@ -315,6 +318,100 @@ public class GtfsFileLoader {
   public List<DirectionName> loadDirectionNamesFromZip(String zipFilePath) throws IOException {
     try (InputStream inputStream = extractFileFromZip(zipFilePath, "direction_names_exceptions.txt")) {
       return loadDirectionNames(inputStream);
+    }
+  }
+
+  /**
+   * Load calendars from GTFS calendar.txt file
+   */
+  public List<Calendar> loadCalendars(InputStream inputStream) throws IOException {
+    List<Calendar> calendars = new ArrayList<>();
+    
+    try (CSVParser parser = CSVFormat.DEFAULT
+        .withFirstRecordAsHeader()
+        .parse(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+      
+      for (CSVRecord record : parser) {
+        try {
+          String serviceId = record.get("service_id");
+          String startDateStr = record.get("start_date");
+          String endDateStr = record.get("end_date");
+          String mondayStr = record.get("monday");
+          String tuesdayStr = record.get("tuesday");
+          String wednesdayStr = record.get("wednesday");
+          String thursdayStr = record.get("thursday");
+          String fridayStr = record.get("friday");
+          String saturdayStr = record.get("saturday");
+          String sundayStr = record.get("sunday");
+          
+          Calendar calendar = new Calendar(
+              serviceId,
+              Calendar.parseGtfsDate(startDateStr),
+              Calendar.parseGtfsDate(endDateStr),
+              Calendar.parseGtfsBoolean(mondayStr),
+              Calendar.parseGtfsBoolean(tuesdayStr),
+              Calendar.parseGtfsBoolean(wednesdayStr),
+              Calendar.parseGtfsBoolean(thursdayStr),
+              Calendar.parseGtfsBoolean(fridayStr),
+              Calendar.parseGtfsBoolean(saturdayStr),
+              Calendar.parseGtfsBoolean(sundayStr)
+          );
+          
+          calendars.add(calendar);
+          
+        } catch (Exception e) {
+          logger.warn("Error parsing calendar record: {}", record, e);
+        }
+      }
+    }
+    
+    logger.info("Loaded {} calendars", calendars.size());
+    return calendars;
+  }
+
+  /**
+   * Load calendar dates from GTFS calendar_dates.txt file
+   */
+  public List<CalendarDate> loadCalendarDates(InputStream inputStream) throws IOException {
+    List<CalendarDate> calendarDates = new ArrayList<>();
+    
+    try (CSVParser parser = CSVFormat.DEFAULT
+        .withFirstRecordAsHeader()
+        .parse(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+      
+      for (CSVRecord record : parser) {
+        try {
+          String serviceId = record.get("service_id");
+          String dateStr = record.get("date");
+          String exceptionTypeStr = record.get("exception_type");
+          
+          CalendarDate calendarDate = new CalendarDate(
+              serviceId,
+              CalendarDate.parseGtfsDate(dateStr),
+              CalendarDate.ExceptionType.fromString(exceptionTypeStr)
+          );
+          
+          calendarDates.add(calendarDate);
+          
+        } catch (Exception e) {
+          logger.warn("Error parsing calendar date record: {}", record, e);
+        }
+      }
+    }
+    
+    logger.info("Loaded {} calendar dates", calendarDates.size());
+    return calendarDates;
+  }
+
+  public List<Calendar> loadCalendarsFromZip(String zipFilePath) throws IOException {
+    try (InputStream inputStream = extractFileFromZip(zipFilePath, "calendar.txt")) {
+      return loadCalendars(inputStream);
+    }
+  }
+
+  public List<CalendarDate> loadCalendarDatesFromZip(String zipFilePath) throws IOException {
+    try (InputStream inputStream = extractFileFromZip(zipFilePath, "calendar_dates.txt")) {
+      return loadCalendarDates(inputStream);
     }
   }
 }

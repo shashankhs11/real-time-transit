@@ -6,7 +6,10 @@ import com.bustracker.tracker.domain.Trip;
 import com.bustracker.tracker.domain.StopTime;
 import com.bustracker.tracker.domain.ShapePoint;
 import com.bustracker.tracker.domain.DirectionName;
+import com.bustracker.tracker.domain.Calendar;
+import com.bustracker.tracker.domain.CalendarDate;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +37,8 @@ public interface GtfsRepository {
 
   // StopTime operations - CRITICAL for user flow
   List<StopTime> findStopTimesByTripId(String tripId);
+  List<StopTime> findStopTimesByStopId(String stopId);
+  Optional<StopTime> findStopTimeByTripIdAndStopId(String tripId, String stopId);
   List<Stop> findStopsForRouteAndDirection(String routeId, int directionId);
   Optional<Trip> findRepresentativeTripForRouteAndDirection(String routeId, int directionId);
 
@@ -45,6 +50,15 @@ public interface GtfsRepository {
   Optional<DirectionName> findDirectionNameByRouteAndDirection(String routeShortName, int directionId);
   List<DirectionName> findDirectionNamesByRoute(String routeShortName);
 
+  // Calendar operations - for service schedule validation
+  List<Calendar> findAllCalendars();
+  Optional<Calendar> findCalendarByServiceId(String serviceId);
+
+  // CalendarDate operations - for service exceptions
+  List<CalendarDate> findAllCalendarDates();
+  List<CalendarDate> findCalendarDatesByServiceId(String serviceId);
+  Optional<CalendarDate> findCalendarDateByServiceIdAndDate(String serviceId, LocalDate date);
+
   // Data loading operations
   void loadRoutes(List<Route> routes);
   void loadStops(List<Stop> stops);
@@ -52,6 +66,8 @@ public interface GtfsRepository {
   void loadStopTimes(List<StopTime> stopTimes);
   void loadShapePoints(List<ShapePoint> shapePoints);
   void loadDirectionNames(List<DirectionName> directionNames);
+  void loadCalendars(List<Calendar> calendars);
+  void loadCalendarDates(List<CalendarDate> calendarDates);
 
   // Repository statistics
   RepositoryStats getStats();
@@ -66,16 +82,21 @@ public interface GtfsRepository {
     private final int stopTimeCount;
     private final int shapePointCount;
     private final int directionNameCount;
+    private final int calendarCount;
+    private final int calendarDateCount;
     private final long lastLoadTime;
 
     public RepositoryStats(int routeCount, int stopCount, int tripCount,
-        int stopTimeCount, int shapePointCount, int directionNameCount, long lastLoadTime) {
+        int stopTimeCount, int shapePointCount, int directionNameCount,
+        int calendarCount, int calendarDateCount, long lastLoadTime) {
       this.routeCount = routeCount;
       this.stopCount = stopCount;
       this.tripCount = tripCount;
       this.stopTimeCount = stopTimeCount;
       this.shapePointCount = shapePointCount;
       this.directionNameCount = directionNameCount;
+      this.calendarCount = calendarCount;
+      this.calendarDateCount = calendarDateCount;
       this.lastLoadTime = lastLoadTime;
     }
 
@@ -85,12 +106,14 @@ public interface GtfsRepository {
     public int getStopTimeCount() { return stopTimeCount; }
     public int getShapePointCount() { return shapePointCount; }
     public int getDirectionNameCount() { return directionNameCount; }
+    public int getCalendarCount() { return calendarCount; }
+    public int getCalendarDateCount() { return calendarDateCount; }
     public long getLastLoadTime() { return lastLoadTime; }
 
     @Override
     public String toString() {
-      return String.format("RepositoryStats{routes=%d, stops=%d, trips=%d, stopTimes=%d, shapes=%d, directions=%d, lastLoad=%d}",
-          routeCount, stopCount, tripCount, stopTimeCount, shapePointCount, directionNameCount, lastLoadTime);
+      return String.format("RepositoryStats{routes=%d, stops=%d, trips=%d, stopTimes=%d, shapes=%d, directions=%d, calendars=%d, calendarDates=%d, lastLoad=%d}",
+          routeCount, stopCount, tripCount, stopTimeCount, shapePointCount, directionNameCount, calendarCount, calendarDateCount, lastLoadTime);
     }
   }
 }

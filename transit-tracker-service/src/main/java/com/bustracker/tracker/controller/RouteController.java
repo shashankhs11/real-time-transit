@@ -6,8 +6,11 @@ import com.bustracker.tracker.dto.StopDto;
 import com.bustracker.tracker.dto.ArrivalsResponseDto;
 import com.bustracker.tracker.dto.RealTimeBusDto;
 import com.bustracker.tracker.dto.ScheduledBusDto;
+import com.bustracker.tracker.domain.StopTime;
 import com.bustracker.tracker.repository.GtfsRepository;
 import com.bustracker.tracker.service.VehicleCorrelationService;
+import com.bustracker.tracker.service.ScheduledArrivalService;
+import com.bustracker.tracker.service.ServiceCalendarService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,11 +36,16 @@ public class RouteController {
 
   private final GtfsRepository gtfsRepository;
   private final VehicleCorrelationService vehicleCorrelationService;
+  private final ScheduledArrivalService scheduledArrivalService;
+  private final ServiceCalendarService serviceCalendarService;
 
   @Autowired
-  public RouteController(GtfsRepository gtfsRepository, VehicleCorrelationService vehicleCorrelationService) {
+  public RouteController(GtfsRepository gtfsRepository, VehicleCorrelationService vehicleCorrelationService,
+                        ScheduledArrivalService scheduledArrivalService, ServiceCalendarService serviceCalendarService) {
     this.gtfsRepository = gtfsRepository;
     this.vehicleCorrelationService = vehicleCorrelationService;
+    this.scheduledArrivalService = scheduledArrivalService;
+    this.serviceCalendarService = serviceCalendarService;
   }
 
   /**
@@ -306,6 +314,16 @@ public class RouteController {
       }
       var stop = stopOpt.get();
 
+      // Step 3.5: Validate stop serves this route and direction
+      var stopsForRoute = gtfsRepository.findStopsForRouteAndDirection(routeId, directionId);
+      boolean stopServesRoute = stopsForRoute.stream()
+          .anyMatch(routeStop -> routeStop.getStopId().equals(stopId));
+      
+      if (!stopServesRoute) {
+        logger.warn("❌ Stop {} does not serve route {} direction {}", stopId, routeId, directionId);
+        return ResponseEntity.notFound().build();
+      }
+
       // Step 4: Get friendly direction name
       var directionNameOpt = gtfsRepository.findDirectionNameByRouteAndDirection(route.getRouteShortName(), directionId);
       String friendlyDirectionName = directionNameOpt
@@ -345,11 +363,23 @@ public class RouteController {
       // Use vehicle correlation service to find buses approaching this stop
       var approachingVehicles = vehicleCorrelationService.findVehiclesApproachingStop(routeId, directionId, stopId);
 
-      // Convert to DTOs
+      // Convert to DTOs with scheduled time correlation
       var realTimeBuses = approachingVehicles.stream()
           .map(av -> {
             var vehicle = av.getVehicle();
             var etaResult = av.getEtaResult();
+
+            // Get enhanced vehicle info with scheduled correlation
+            var enhancedInfo = scheduledArrivalService.createEnhancedVehicleInfo(
+                vehicle, stopId, etaResult.getEtaSeconds());
+
+            // Extract scheduled time information
+            var scheduledArrival = enhancedInfo.hasScheduledTime() ? 
+                enhancedInfo.getScheduledArrival().getScheduledArrival() : null;
+            var delayMinutes = enhancedInfo.hasDelayInfo() ? 
+                enhancedInfo.getDelayInfo().getDelayMinutes() : null;
+            var delayStatus = enhancedInfo.hasDelayInfo() ? 
+                enhancedInfo.getDelayInfo().getStatus().getDisplayName() : null;
 
             return new RealTimeBusDto(
                 vehicle.getVehicleId(),
@@ -358,7 +388,10 @@ public class RouteController {
                 etaResult.getEtaSeconds(),
                 etaResult.getDistanceMeters(),
                 vehicle.getCurrentStatus(),
-                av.getCalculatedAt()
+                av.getCalculatedAt(),
+                scheduledArrival,
+                delayMinutes,
+                delayStatus
             );
           })
           .collect(Collectors.toList());
@@ -373,25 +406,69 @@ public class RouteController {
   }
 
   /**
-   * Helper method to get scheduled arrivals for a stop
-   * Simplified version - returns sample scheduled times
+   * Helper method to get scheduled arrivals for a stop using stop_times.txt
+   * Filters by active services using calendar.txt + calendar_dates.txt
    */
   private List<ScheduledBusDto> getScheduledArrivals(String routeId, int directionId, String stopId) {
-    // TODO: Implement proper scheduled arrivals logic using stop_times.txt
-    // For now, return sample data to test the endpoint structure
-
-    List<ScheduledBusDto> scheduledBuses = new ArrayList<>();
-
-    // Sample scheduled times (replace with real logic later)
-    LocalTime currentTime = LocalTime.now();
-    for (int i = 1; i <= 5; i++) {
-      LocalTime scheduledTime = currentTime.plusMinutes(15 * i);
-      int etaMinutes = (int) java.time.Duration.between(currentTime, scheduledTime).toMinutes();
-
-      scheduledBuses.add(new ScheduledBusDto(scheduledTime, etaMinutes, false));
+    logger.debug("🕐 Getting scheduled arrivals for stop {} in next hour (active services only)", stopId);
+    
+    try {
+      LocalTime currentTime = LocalTime.now();
+      LocalTime endTime = currentTime.plusHours(1); // Show next 1 hour of scheduled arrivals
+      
+      // Get all stop times for this stop
+      List<StopTime> stopTimes = gtfsRepository.findStopTimesByStopId(stopId);
+      
+      // Step 1: Filter by active services using calendar validation
+      List<StopTime> activeStopTimes = serviceCalendarService.filterActiveStopTimes(stopTimes);
+      
+      logger.debug("📅 Filtered {} stop times to {} active services for stop {}", 
+          stopTimes.size(), activeStopTimes.size(), stopId);
+      
+      // Step 2: Filter for next hour and convert to DTOs
+      List<ScheduledBusDto> scheduledBuses = activeStopTimes.stream()
+          .filter(stopTime -> {
+            LocalTime arrivalTime = stopTime.getArrivalTime();
+            return isWithinTimeWindow(arrivalTime, currentTime, endTime);
+          })
+          .map(stopTime -> {
+            LocalTime scheduledTime = stopTime.getArrivalTime();
+            int etaMinutes = (int) java.time.Duration.between(currentTime, scheduledTime).toMinutes();
+            
+            // Handle overnight schedules
+            if (etaMinutes < 0) {
+              etaMinutes += 24 * 60; // Add 24 hours in minutes
+            }
+            
+            return new ScheduledBusDto(scheduledTime, etaMinutes, false);
+          })
+          .filter(bus -> bus.getEtaMinutes() >= 0 && bus.getEtaMinutes() <= 60) // Next 1 hour only
+          .sorted((ScheduledBusDto a, ScheduledBusDto b) -> Integer.compare(a.getEtaMinutes(), b.getEtaMinutes()))
+          .limit(20) // Limit to next 20 scheduled arrivals
+          .collect(Collectors.toList());
+      
+      logger.debug("📋 Found {} active scheduled arrivals at stop {} in next hour", 
+          scheduledBuses.size(), stopId);
+      
+      return scheduledBuses;
+      
+    } catch (Exception e) {
+      logger.error("❌ Error getting scheduled arrivals for stop {}", stopId, e);
+      return new ArrayList<>(); // Return empty list on error
     }
+  }
 
-    return scheduledBuses;
+  /**
+   * Check if a time is within the specified window (handles overnight times)
+   */
+  private boolean isWithinTimeWindow(LocalTime time, LocalTime fromTime, LocalTime toTime) {
+    if (fromTime.isBefore(toTime)) {
+      // Normal case: from 08:00 to 09:00
+      return !time.isBefore(fromTime) && !time.isAfter(toTime);
+    } else {
+      // Overnight case: from 23:00 to 01:00
+      return !time.isBefore(fromTime) || !time.isAfter(toTime);
+    }
   }
 
   /**

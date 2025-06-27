@@ -10,13 +10,15 @@ public class Trip {
 
   private final String tripId;
   private final String routeId;
+  private final String serviceId;
   private final String shapeId;
   private final int directionId;
   private final String tripHeadsign;
 
-  public Trip(String tripId, String routeId, String shapeId, int directionId, String tripHeadsign) {
+  public Trip(String tripId, String routeId, String serviceId, String shapeId, int directionId, String tripHeadsign) {
     this.tripId = Objects.requireNonNull(tripId, "Trip ID cannot be null");
     this.routeId = Objects.requireNonNull(routeId, "Route ID cannot be null");
+    this.serviceId = Objects.requireNonNull(serviceId, "Service ID cannot be null");
     this.shapeId = shapeId; // Can be null
     this.directionId = directionId;
     this.tripHeadsign = tripHeadsign; // Can be null
@@ -33,6 +35,10 @@ public class Trip {
 
   public String getRouteId() {
     return routeId;
+  }
+
+  public String getServiceId() {
+    return serviceId;
   }
 
   public String getShapeId() {

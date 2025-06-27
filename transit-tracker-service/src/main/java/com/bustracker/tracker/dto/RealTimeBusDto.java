@@ -1,6 +1,7 @@
 package com.bustracker.tracker.dto;
 
 import java.time.Instant;
+import java.time.LocalTime;
 
 /**
  * Data Transfer Object for real-time bus information
@@ -15,6 +16,11 @@ public class RealTimeBusDto {
   private double distanceMeters;
   private String currentStatus;
   private Instant lastUpdated;
+  
+  // Scheduled time information
+  private LocalTime scheduledArrival;
+  private Integer delayMinutes;
+  private String delayStatus;
 
   // Default constructor
   public RealTimeBusDto() {}
@@ -28,6 +34,22 @@ public class RealTimeBusDto {
     this.distanceMeters = distanceMeters;
     this.currentStatus = currentStatus;
     this.lastUpdated = lastUpdated;
+    // Scheduled fields will be null by default
+  }
+
+  public RealTimeBusDto(String vehicleId, String tripId, int etaMinutes, int etaSeconds,
+      double distanceMeters, String currentStatus, Instant lastUpdated,
+      LocalTime scheduledArrival, Integer delayMinutes, String delayStatus) {
+    this.vehicleId = vehicleId;
+    this.tripId = tripId;
+    this.etaMinutes = etaMinutes;
+    this.etaSeconds = etaSeconds;
+    this.distanceMeters = distanceMeters;
+    this.currentStatus = currentStatus;
+    this.lastUpdated = lastUpdated;
+    this.scheduledArrival = scheduledArrival;
+    this.delayMinutes = delayMinutes;
+    this.delayStatus = delayStatus;
   }
 
   public String getVehicleId() {
@@ -86,9 +108,48 @@ public class RealTimeBusDto {
     this.lastUpdated = lastUpdated;
   }
 
+  public LocalTime getScheduledArrival() {
+    return scheduledArrival;
+  }
+
+  public void setScheduledArrival(LocalTime scheduledArrival) {
+    this.scheduledArrival = scheduledArrival;
+  }
+
+  public Integer getDelayMinutes() {
+    return delayMinutes;
+  }
+
+  public void setDelayMinutes(Integer delayMinutes) {
+    this.delayMinutes = delayMinutes;
+  }
+
+  public String getDelayStatus() {
+    return delayStatus;
+  }
+
+  public void setDelayStatus(String delayStatus) {
+    this.delayStatus = delayStatus;
+  }
+
+  /**
+   * Helper method to check if this bus has scheduled time information
+   */
+  public boolean hasScheduledTime() {
+    return scheduledArrival != null;
+  }
+
+  /**
+   * Helper method to check if this bus is delayed
+   */
+  public boolean isDelayed() {
+    return delayMinutes != null && delayMinutes > 1;
+  }
+
   @Override
   public String toString() {
-    return String.format("RealTimeBusDto{vehicleId='%s', etaMinutes=%d, distanceMeters=%.0f}",
-        vehicleId, etaMinutes, distanceMeters);
+    return String.format("RealTimeBusDto{vehicleId='%s', etaMinutes=%d, distanceMeters=%.0f, scheduled=%s, delay=%s}",
+        vehicleId, etaMinutes, distanceMeters, scheduledArrival, 
+        delayMinutes != null ? delayMinutes + "min" : "N/A");
   }
 }

@@ -59,6 +59,14 @@ public class TransitTrackerApplication implements CommandLineRunner {
       var directionNames = gtfsFileLoader.loadDirectionNamesFromZip(zipPath);
       gtfsRepository.loadDirectionNames(directionNames);
 
+      System.out.println("📂 Loading calendars...");
+      var calendars = gtfsFileLoader.loadCalendarsFromZip(zipPath);
+      gtfsRepository.loadCalendars(calendars);
+
+      System.out.println("📂 Loading calendar dates...");
+      var calendarDates = gtfsFileLoader.loadCalendarDatesFromZip(zipPath);
+      gtfsRepository.loadCalendarDates(calendarDates);
+
       // Display repository statistics
       System.out.println("📊 Complete GTFS Repository Stats: " + gtfsRepository.getStats());
 

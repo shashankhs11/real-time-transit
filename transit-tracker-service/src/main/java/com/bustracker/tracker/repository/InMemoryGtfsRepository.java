@@ -6,10 +6,13 @@ import com.bustracker.tracker.domain.Stop;
 import com.bustracker.tracker.domain.Trip;
 import com.bustracker.tracker.domain.StopTime;
 import com.bustracker.tracker.domain.ShapePoint;
+import com.bustracker.tracker.domain.Calendar;
+import com.bustracker.tracker.domain.CalendarDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -29,8 +32,11 @@ public class InMemoryGtfsRepository implements GtfsRepository {
   private final Map<String, Stop> stopsById = new ConcurrentHashMap<>();
   private final Map<String, Trip> tripsById = new ConcurrentHashMap<>();
   private final Map<String, List<StopTime>> stopTimesByTripId = new ConcurrentHashMap<>();
+  private final Map<String, List<StopTime>> stopTimesByStopId = new ConcurrentHashMap<>();
   private final Map<String, List<ShapePoint>> shapePointsByShapeId = new ConcurrentHashMap<>();
   private final Map<String, DirectionName> directionNamesByCompositeKey = new ConcurrentHashMap<>();
+  private final Map<String, Calendar> calendarsById = new ConcurrentHashMap<>();
+  private final Map<String, List<CalendarDate>> calendarDatesByServiceId = new ConcurrentHashMap<>();
 
   // Secondary indexes for efficient lookups
   private final Map<String, List<Route>> routesByShortName = new ConcurrentHashMap<>();
@@ -104,6 +110,18 @@ public class InMemoryGtfsRepository implements GtfsRepository {
   }
 
   @Override
+  public List<StopTime> findStopTimesByStopId(String stopId) {
+    return stopTimesByStopId.getOrDefault(stopId, Collections.emptyList());
+  }
+
+  @Override
+  public Optional<StopTime> findStopTimeByTripIdAndStopId(String tripId, String stopId) {
+    return findStopTimesByTripId(tripId).stream()
+        .filter(stopTime -> stopId.equals(stopTime.getStopId()))
+        .findFirst();
+  }
+
+  @Override
   public List<Stop> findStopsForRouteAndDirection(String routeId, int directionId) {
     // Get a representative trip for this route and direction
     Optional<Trip> representativeTrip = findRepresentativeTripForRouteAndDirection(routeId, directionId);
@@ -165,6 +183,37 @@ public class InMemoryGtfsRepository implements GtfsRepository {
   @Override
   public List<DirectionName> findDirectionNamesByRoute(String routeShortName) {
     return directionNamesByRoute.getOrDefault(routeShortName, Collections.emptyList());
+  }
+
+  // Calendar operations
+  @Override
+  public List<Calendar> findAllCalendars() {
+    return new ArrayList<>(calendarsById.values());
+  }
+
+  @Override
+  public Optional<Calendar> findCalendarByServiceId(String serviceId) {
+    return Optional.ofNullable(calendarsById.get(serviceId));
+  }
+
+  // CalendarDate operations
+  @Override
+  public List<CalendarDate> findAllCalendarDates() {
+    return calendarDatesByServiceId.values().stream()
+        .flatMap(List::stream)
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public List<CalendarDate> findCalendarDatesByServiceId(String serviceId) {
+    return calendarDatesByServiceId.getOrDefault(serviceId, Collections.emptyList());
+  }
+
+  @Override
+  public Optional<CalendarDate> findCalendarDateByServiceIdAndDate(String serviceId, LocalDate date) {
+    return findCalendarDatesByServiceId(serviceId).stream()
+        .filter(calendarDate -> calendarDate.getDate().equals(date))
+        .findFirst();
   }
 
   // Data loading operations
@@ -237,10 +286,17 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     logger.info("📦 Loading {} stop times into repository", stopTimes.size());
 
     stopTimesByTripId.clear();
+    stopTimesByStopId.clear();
 
     for (StopTime stopTime : stopTimes) {
+      // Index by trip ID
       stopTimesByTripId
           .computeIfAbsent(stopTime.getTripId(), k -> new ArrayList<>())
+          .add(stopTime);
+      
+      // Index by stop ID
+      stopTimesByStopId
+          .computeIfAbsent(stopTime.getStopId(), k -> new ArrayList<>())
           .add(stopTime);
     }
 
@@ -290,6 +346,36 @@ public class InMemoryGtfsRepository implements GtfsRepository {
   }
 
   @Override
+  public void loadCalendars(List<Calendar> calendars) {
+    logger.info("📦 Loading {} calendars into repository", calendars.size());
+
+    calendarsById.clear();
+
+    for (Calendar calendar : calendars) {
+      calendarsById.put(calendar.getServiceId(), calendar);
+    }
+
+    lastLoadTime = System.currentTimeMillis();
+    logger.info("✅ Loaded {} calendars", calendars.size());
+  }
+
+  @Override
+  public void loadCalendarDates(List<CalendarDate> calendarDates) {
+    logger.info("📦 Loading {} calendar dates into repository", calendarDates.size());
+
+    calendarDatesByServiceId.clear();
+
+    for (CalendarDate calendarDate : calendarDates) {
+      calendarDatesByServiceId
+          .computeIfAbsent(calendarDate.getServiceId(), k -> new ArrayList<>())
+          .add(calendarDate);
+    }
+
+    lastLoadTime = System.currentTimeMillis();
+    logger.info("✅ Loaded {} calendar dates for {} services", calendarDates.size(), calendarDatesByServiceId.size());
+  }
+
+  @Override
   public RepositoryStats getStats() {
     return new RepositoryStats(
         routesById.size(),
@@ -298,6 +384,8 @@ public class InMemoryGtfsRepository implements GtfsRepository {
         stopTimesByTripId.values().stream().mapToInt(List::size).sum(),
         shapePointsByShapeId.values().stream().mapToInt(List::size).sum(),
         directionNamesByCompositeKey.size(),
+        calendarsById.size(),
+        calendarDatesByServiceId.values().stream().mapToInt(List::size).sum(),
         lastLoadTime
     );
   }
