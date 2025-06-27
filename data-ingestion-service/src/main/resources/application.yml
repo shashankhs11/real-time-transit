@@ -1,0 +1,65 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: data-ingestion-service
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      acks: all # all replicas must acknowledge
+      retries: 3 # if failure, try 3 times
+      properties:
+        enable.idempotence: true # ensure messages are not duplicated on retry
+        max.in.flight.requests.per.connection: 1 # number of unack requests to 1
+
+    security:
+      protocol: SASL_SSL #sasl means username/password instead of ssl (encrypted connection)
+
+    sasl:
+      mechanism: PLAIN
+      jaas:
+        config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_API_KEY:your-api-key}" password="${KAFKA_API_SECRET:your-api-secret}";
+
+
+# TransLink GTFS API Configuration
+translink:
+  api:
+    base-url: https://gtfsapi.translink.ca/v3
+    api-key: ${TRANSLINK_API_KEY:your-translink-api-key}
+    endpoints:
+      positions: /gtfsposition
+    polling:
+      interval-seconds: 30
+      initial-delay-seconds: 10
+
+# Kafka Topic Configuration
+kafka:
+  topics:
+    vehicle-positions: vehicle-positions
+
+# Management and Monitoring
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics
+#  endpoint:
+#    health:
+#      show-details: always
+
+# Logging Configuration
+logging:
+  level:
+    com.bustracker.ingestion.service.VehicleDataPollingService: INFO
+    com.bustracker.ingestion.service.VehiclePositionProducer: INFO
+    com.bustracker.ingestion.service.TransLinkApiClient: INFO
+    com.bustracker: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    root: INFO
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-2level %logger{36} - %msg%n"

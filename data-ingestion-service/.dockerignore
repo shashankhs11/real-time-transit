@@ -1,0 +1,19 @@
+# Build artifacts
+target/
+!target/*.jar
+
+# IDE files
+.idea/
+*.iml
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files (security)
+.env
+*.env

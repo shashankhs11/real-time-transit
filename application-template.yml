@@ -1,0 +1,28 @@
+# Template configuration file
+# Copy this to application-local.yml and fill in your actual values
+# DO NOT commit application-local.yml to git!
+
+spring:
+  kafka:
+    bootstrap-servers: YOUR_CONFLUENT_BOOTSTRAP_SERVER_HERE
+
+translink:
+  api:
+    api-key: "YOUR_TRANSLINK_API_KEY_HERE"
+
+# Set these as environment variables:
+# KAFKA_API_KEY=your-confluent-api-key
+# KAFKA_API_SECRET=your-confluent-api-secret
+# TRANSLINK_API_KEY=your-translink-api-key
+
+logging:
+  level:
+    com.bustracker.ingestion.service.VehicleDataPollingService: INFO
+    com.bustracker.ingestion.service.VehiclePositionProducer: WARN
+    com.bustracker.ingestion.service.TransLinkApiClient: WARN
+    com.bustracker: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    root: INFO
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
