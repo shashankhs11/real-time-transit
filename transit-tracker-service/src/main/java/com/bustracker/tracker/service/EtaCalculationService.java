@@ -2,9 +2,14 @@ package com.bustracker.tracker.service;
 
 import com.bustracker.shared.model.VehiclePosition;
 import com.bustracker.tracker.domain.Stop;
+import com.bustracker.tracker.domain.Trip;
+import com.bustracker.tracker.repository.GtfsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 /**
  * Service for calculating ETAs and distances for real-time bus tracking
@@ -21,6 +26,16 @@ public class EtaCalculationService {
 
   // Earth's radius in meters for Haversine calculation
   private static final double EARTH_RADIUS_M = 6371000.0;
+  
+  private final GtfsRepository gtfsRepository;
+  private final ShapeDistanceCalculationService shapeDistanceCalculationService;
+
+  @Autowired
+  public EtaCalculationService(GtfsRepository gtfsRepository, 
+                              ShapeDistanceCalculationService shapeDistanceCalculationService) {
+    this.gtfsRepository = gtfsRepository;
+    this.shapeDistanceCalculationService = shapeDistanceCalculationService;
+  }
 
   /**
    * Calculate straight-line distance between vehicle and stop using Haversine formula
@@ -97,12 +112,14 @@ public class EtaCalculationService {
 
   /**
    * Calculate both distance and ETA for a vehicle approaching a stop
+   * Uses shape-based distance calculation when trip shape data is available,
+   * falls back to straight-line distance otherwise
    * @param vehiclePosition Current vehicle position
    * @param targetStop Target stop
    * @return EtaResult with distance and time information
    */
   public EtaResult calculateEta(VehiclePosition vehiclePosition, Stop targetStop) {
-    double distance = calculateDistance(vehiclePosition, targetStop);
+    double distance = calculateDistanceWithShapes(vehiclePosition, targetStop);
     int etaSeconds = calculateEtaSeconds(distance);
     int etaMinutes = calculateEtaMinutes(etaSeconds);
 
@@ -111,6 +128,45 @@ public class EtaCalculationService {
         Math.round(distance), etaMinutes, etaSeconds % 60);
 
     return new EtaResult(distance, etaSeconds, etaMinutes);
+  }
+
+  /**
+   * Calculate distance using shape data when available, fallback to straight-line
+   * @param vehiclePosition Current vehicle position
+   * @param targetStop Target stop
+   * @return Distance in meters
+   */
+  public double calculateDistanceWithShapes(VehiclePosition vehiclePosition, Stop targetStop) {
+    // Try to get trip information for shape-based calculation
+    if (vehiclePosition.getTripId() != null) {
+      Optional<Trip> tripOpt = gtfsRepository.findTripById(vehiclePosition.getTripId());
+      
+      if (tripOpt.isPresent() && tripOpt.get().hasShape()) {
+        Trip trip = tripOpt.get();
+        var shapeResult = shapeDistanceCalculationService.calculateShapeDistance(
+            vehiclePosition, trip, targetStop);
+        
+        if (shapeResult != null) {
+          logger.debug("Using shape-based distance: {}m (trip: {}, shape: {})", 
+              shapeResult.getRouteDistanceM(), trip.getTripId(), trip.getShapeId());
+          return shapeResult.getRouteDistanceM();
+        } else {
+          logger.debug("Shape calculation failed, falling back to straight-line for trip: {}", 
+              trip.getTripId());
+        }
+      } else {
+        logger.debug("No shape data available for trip: {}, using straight-line distance", 
+            vehiclePosition.getTripId());
+      }
+    } else {
+      logger.debug("No trip ID available for vehicle: {}, using straight-line distance", 
+          vehiclePosition.getVehicleId());
+    }
+    
+    // Fallback to straight-line distance
+    double straightLineDistance = calculateDistance(vehiclePosition, targetStop);
+    logger.debug("Using straight-line distance: {}m", straightLineDistance);
+    return straightLineDistance;
   }
 
   /**
