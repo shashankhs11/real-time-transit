@@ -54,7 +54,7 @@ public class VehicleDataPollingService {
     }
 
     pollCount++;
-    logger.info("Starting polling cycle #{}", pollCount);
+    logger.debug("Starting polling cycle #{}", pollCount);
 
     try {
       apiClient.fetchVehiclePositions()
@@ -63,7 +63,7 @@ public class VehicleDataPollingService {
             return transformer.transformVehiclePositions(feedMessage);
           })
           .flatMap(vehiclePositions -> {
-            logger.info("Transformed {} vehicle positions", vehiclePositions.size());
+            logger.debug("Transformed {} vehicle positions", vehiclePositions.size());
 
             if (vehiclePositions.isEmpty()) {
               logger.warn("No vehicle positions found in polling cycle: {}", pollCount);

@@ -31,7 +31,7 @@ public class GtfsFileLoader {
    * Load routes from GTFS routes.txt file
    */
   public List<Route> loadRoutes(InputStream routesInputStream) throws IOException {
-    logger.info("📂 Loading routes from GTFS routes.txt");
+    logger.debug("Loading routes from GTFS routes.txt");
 
     List<Route> routes = new ArrayList<>();
 
@@ -52,12 +52,12 @@ public class GtfsFileLoader {
           }
 
         } catch (Exception e) {
-          logger.warn("❌ Failed to parse route record: {}", record, e);
+          logger.warn("Failed to parse route record: {}", record, e);
         }
       }
     }
 
-    logger.info("✅ Loaded {} bus routes", routes.size());
+    logger.info("Loaded {} bus routes", routes.size());
     return routes;
   }
 
@@ -65,7 +65,7 @@ public class GtfsFileLoader {
    * Load stops from GTFS stops.txt file
    */
   public List<Stop> loadStops(InputStream stopsInputStream) throws IOException {
-    logger.info("📂 Loading stops from GTFS stops.txt");
+    logger.debug("Loading stops from GTFS stops.txt");
 
     List<Stop> stops = new ArrayList<>();
 
@@ -83,12 +83,12 @@ public class GtfsFileLoader {
           stops.add(stop);
 
         } catch (Exception e) {
-          logger.warn("❌ Failed to parse stop record: {}", record, e);
+          logger.warn("Failed to parse stop record: {}", record, e);
         }
       }
     }
 
-    logger.info("✅ Loaded {} stops", stops.size());
+    logger.info("Loaded {} stops", stops.size());
     return stops;
   }
 
@@ -96,7 +96,7 @@ public class GtfsFileLoader {
    * Load trips from GTFS trips.txt file
    */
   public List<Trip> loadTrips(InputStream tripsInputStream) throws IOException {
-    logger.info("📂 Loading trips from GTFS trips.txt");
+    logger.debug("Loading trips from GTFS trips.txt");
 
     List<Trip> trips = new ArrayList<>();
 
@@ -116,12 +116,12 @@ public class GtfsFileLoader {
           trips.add(trip);
 
         } catch (Exception e) {
-          logger.warn("❌ Failed to parse trip record: {}", record, e);
+          logger.warn("Failed to parse trip record: {}", record, e);
         }
       }
     }
 
-    logger.info("✅ Loaded {} trips", trips.size());
+    logger.info("Loaded {} trips", trips.size());
     return trips;
   }
 
@@ -130,7 +130,7 @@ public class GtfsFileLoader {
    * This is the CRITICAL file that connects trips to stops
    */
   public List<StopTime> loadStopTimes(InputStream stopTimesInputStream) throws IOException {
-    logger.info("📂 Loading stop times from GTFS stop_times.txt");
+    logger.debug("Loading stop times from GTFS stop_times.txt");
 
     List<StopTime> stopTimes = new ArrayList<>();
     int skippedRecords = 0;
@@ -157,17 +157,17 @@ public class GtfsFileLoader {
           }
 
         } catch (Exception e) {
-          logger.warn("❌ Failed to parse stop time record: {}", record, e);
+          logger.warn("Failed to parse stop time record: {}", record, e);
           skippedRecords++;
         }
       }
     }
 
     if (skippedRecords > 0) {
-      logger.warn("⚠️ Skipped {} invalid stop time records", skippedRecords);
+      logger.warn("Skipped {} invalid stop time records", skippedRecords);
     }
 
-    logger.info("✅ Loaded {} stop times", stopTimes.size());
+    logger.info("Loaded {} stop times", stopTimes.size());
     return stopTimes;
   }
 
@@ -176,7 +176,7 @@ public class GtfsFileLoader {
    * TransLink-specific file with format: route_name,direction_id,direction_name,direction_do
    */
   public List<DirectionName> loadDirectionNames(InputStream directionNamesInputStream) throws IOException {
-    logger.info("📂 Loading direction names from GTFS direction_names_exceptions.txt");
+    logger.debug("Loading direction names from GTFS direction_names_exceptions.txt");
 
     List<DirectionName> directionNames = new ArrayList<>();
 
@@ -214,21 +214,21 @@ public class GtfsFileLoader {
             DirectionName direction = new DirectionName(routeName, directionId, directionName, directionDo);
             directionNames.add(direction);
           } else {
-            logger.warn("❌ Incomplete direction name record: routeName={}, directionId={}, directionName={}",
+            logger.warn("Incomplete direction name record: routeName={}, directionId={}, directionName={}",
                 routeName, directionId, directionName);
           }
 
         } catch (Exception e) {
-          logger.warn("❌ Failed to parse direction name record: {}", record, e);
+          logger.warn("Failed to parse direction name record: {}", record, e);
         }
       }
     }
 
-    logger.info("✅ Loaded {} direction names", directionNames.size());
+    logger.debug("Loaded {} direction names", directionNames.size());
     return directionNames;
   }
   public List<ShapePoint> loadShapePoints(InputStream shapesInputStream) throws IOException {
-    logger.info("📂 Loading shape points from GTFS shapes.txt");
+    logger.debug("Loading shape points from GTFS shapes.txt");
 
     List<ShapePoint> shapePoints = new ArrayList<>();
 
@@ -246,12 +246,12 @@ public class GtfsFileLoader {
           shapePoints.add(shapePoint);
 
         } catch (Exception e) {
-          logger.warn("❌ Failed to parse shape point record: {}", record, e);
+          logger.warn("Failed to parse shape point record: {}", record, e);
         }
       }
     }
 
-    logger.info("✅ Loaded {} shape points", shapePoints.size());
+    logger.debug("Loaded {} shape points", shapePoints.size());
     return shapePoints;
   }
 
@@ -259,7 +259,7 @@ public class GtfsFileLoader {
    * Extract a specific file from the GTFS zip and return as InputStream
    */
   public InputStream extractFileFromZip(String zipFilePath, String fileName) throws IOException {
-    logger.debug("📂 Extracting {} from {}", fileName, zipFilePath);
+    logger.debug("Extracting {} from {}", fileName, zipFilePath);
 
     try (FileInputStream fis = new FileInputStream(zipFilePath);
         ZipInputStream zis = new ZipInputStream(fis)) {

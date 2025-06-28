@@ -37,7 +37,7 @@ public class VehiclePositionProducer {
    * Publish a list of vehicle positions to Kafka
    */
   public CompletableFuture<Void> publishVehiclePositions(List<VehiclePosition> vehiclePositions) {
-    logger.info("Publishing {} vehicle positions to Kafka topic: {}",
+    logger.debug("Publishing {} vehicle positions to Kafka topic: {}",
         vehiclePositions.size(), topicName);
 
     // Create a list of futures for all publish operations
@@ -54,7 +54,7 @@ public class VehiclePositionProducer {
       if (throwable != null) {
         logger.error("Failed to publish some vehicle positions", throwable);
       } else {
-        logger.info("Successfully published all {} vehicle positions", vehiclePositions.size());
+        logger.debug("Successfully published all {} vehicle positions", vehiclePositions.size());
       }
     });
   }
@@ -108,7 +108,7 @@ public class VehiclePositionProducer {
    * Test method to publish a single test message
    */
   public CompletableFuture<SendResult<String, byte[]>> publishTestMessage() {
-    logger.info("Publishing test message to Kafka topic: {}", topicName);
+    logger.debug("Publishing test message to Kafka topic: {}", topicName);
 
     // Create a test vehicle position
     VehiclePosition testVehicle = new VehiclePosition();

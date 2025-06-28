@@ -52,12 +52,12 @@ public class VehicleCorrelationService {
    * @return List of vehicles with ETA information
    */
   public List<ApproachingVehicle> findVehiclesApproachingStop(String routeId, int directionId, String stopId) {
-    logger.debug("🔍 Finding vehicles approaching stop {} on route {} direction {}", stopId, routeId, directionId);
+    logger.debug("Finding vehicles approaching stop {} on route {} direction {}", stopId, routeId, directionId);
 
     // Get the target stop
     var stopOpt = gtfsRepository.findStopById(stopId);
     if (stopOpt.isEmpty()) {
-      logger.warn("❌ Stop not found: {}", stopId);
+      logger.warn("Stop not found: {}", stopId);
       return List.of();
     }
     var targetStop = stopOpt.get();
@@ -72,7 +72,7 @@ public class VehicleCorrelationService {
         .filter(this::isVehicleDataFresh)
         .toList();
 
-    logger.debug("📊 Found {} vehicles on route {} direction {} (total vehicles: {})",
+    logger.debug("Found {} vehicles on route {} direction {} (total vehicles: {})",
         routeVehicles.size(), routeId, directionId, allVehicles.size());
 
     // Calculate distance and ETA for each vehicle to the target stop
@@ -86,7 +86,7 @@ public class VehicleCorrelationService {
         .sorted((a, b) -> Double.compare(a.getEtaResult().getDistanceMeters(), b.getEtaResult().getDistanceMeters()))
         .collect(Collectors.toList());
 
-    logger.info("✅ Found {} meaningful vehicles approaching stop {} (filtered from {} total vehicles on route)",
+    logger.debug("Found {} meaningful vehicles approaching stop {} (filtered from {} total vehicles on route)",
         approachingVehicles.size(), targetStop.getStopName(), routeVehicles.size());
 
     return approachingVehicles;
@@ -105,7 +105,7 @@ public class VehicleCorrelationService {
     boolean isFresh = ageSeconds <= MAX_POSITION_AGE_SECONDS;
 
     if (!isFresh) {
-      logger.debug("🕒 Skipping stale vehicle data: {} is {} seconds old",
+      logger.debug("Skipping stale vehicle data: {} is {} seconds old",
           vehicle.getVehicleId(), ageSeconds);
     }
 
@@ -127,7 +127,7 @@ public class VehicleCorrelationService {
     boolean isMeaningful = distance >= MIN_MEANINGFUL_DISTANCE_M || etaSeconds >= MIN_MEANINGFUL_ETA_SECONDS;
     
     if (!isMeaningful) {
-      logger.debug("🚫 Filtering out vehicle {} - too close: {}m, {}s", 
+      logger.debug("Filtering out vehicle {} - too close: {}m, {}s", 
           approachingVehicle.getVehicle().getVehicleId(), 
           Math.round(distance), etaSeconds);
     }

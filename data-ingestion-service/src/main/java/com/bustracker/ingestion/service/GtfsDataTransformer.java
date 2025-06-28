@@ -28,7 +28,7 @@ public class GtfsDataTransformer {
         .filter(Objects::nonNull)
         .collect(Collectors.toList());
 
-    logger.info("Successfully transformed {} vehicle positions", vehiclePositions.size());
+    logger.debug("Successfully transformed {} vehicle positions", vehiclePositions.size());
     return vehiclePositions;
   }
 

@@ -10,10 +10,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-// Add this import at top
-import com.bustracker.tracker.domain.Route;
-
-// Add this method temporarily to test
 
 @Service
 public class VehicleStorageService {
@@ -35,14 +31,10 @@ public class VehicleStorageService {
 
     // Log storage stats every 50 vehicles
     if (vehicles.size() % 50 == 0) {
-      logger.debug("📦 Stored {} vehicles in memory", vehicles.size());
+      logger.debug("Stored {} vehicles in memory", vehicles.size());
     }
   }
 
-  public void testDomainModels() {
-    Route route = new Route("6635", "49", "UBC - Metrotown Station", 3);
-    logger.info("Test route: {}", route);
-  }
   /**
    * Get all vehicles
    */

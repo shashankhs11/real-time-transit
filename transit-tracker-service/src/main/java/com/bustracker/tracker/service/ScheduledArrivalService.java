@@ -38,7 +38,7 @@ public class ScheduledArrivalService {
         Optional<StopTime> stopTimeOpt = gtfsRepository.findStopTimeByTripIdAndStopId(tripId, stopId);
         
         if (stopTimeOpt.isEmpty()) {
-            logger.warn("❌ No scheduled time found for trip {} at stop {} - checking if trip/stop exist", tripId, stopId);
+            logger.warn("No scheduled time found for trip {} at stop {} - checking if trip/stop exist", tripId, stopId);
             
             // Debug: Check if trip exists
             var tripExists = gtfsRepository.findTripById(tripId);
@@ -60,7 +60,7 @@ public class ScheduledArrivalService {
         }
         
         StopTime stopTime = stopTimeOpt.get();
-        logger.debug("✅ Found scheduled arrival for trip {} at stop {}: {}", 
+        logger.debug("Found scheduled arrival for trip {} at stop {}: {}", 
             tripId, stopId, stopTime.getArrivalTime());
         
         return Optional.of(new ScheduledArrival(

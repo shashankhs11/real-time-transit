@@ -1,6 +1,7 @@
 package com.bustracker.tracker.controller;
 
 import com.bustracker.tracker.domain.DirectionName;
+import com.bustracker.tracker.domain.Trip;
 import com.bustracker.tracker.dto.RouteDto;
 import com.bustracker.tracker.dto.DirectionDto;
 import com.bustracker.tracker.dto.StopDto;
@@ -64,7 +65,7 @@ public class RouteController {
    */
   @GetMapping
   public ResponseEntity<List<RouteDto>> getAllRoutes() {
-    logger.info("📡 GET /api/routes - Fetching all available routes");
+    logger.debug("Fetching all available routes");
 
     try {
       // Get all routes from repository
@@ -90,11 +91,11 @@ public class RouteController {
           })
           .collect(Collectors.toList());
 
-      logger.info("✅ Successfully returned {} routes", routeDtos.size());
+      logger.debug("Successfully returned {} routes", routeDtos.size());
       return ResponseEntity.ok(routeDtos);
 
     } catch (Exception e) {
-      logger.error("❌ Error fetching routes", e);
+      logger.error("Error fetching routes", e);
       return ResponseEntity.internalServerError().build();
     }
   }
@@ -119,13 +120,13 @@ public class RouteController {
    */
   @GetMapping("/{routeId}/directions")
   public ResponseEntity<List<DirectionDto>> getDirectionsForRoute(@PathVariable("routeId") String routeId) {
-    logger.info("📡 GET /api/routes/{}/directions - Fetching directions for route", routeId);
+    logger.debug("Fetching directions for route: {}", routeId);
 
     try {
       // First, verify the route exists
       var routeOpt = gtfsRepository.findRouteById(routeId);
       if (routeOpt.isEmpty()) {
-        logger.warn("❌ Route not found: {}", routeId);
+        logger.warn("Route not found: {}", routeId);
         return ResponseEntity.notFound().build();
       }
 
@@ -137,11 +138,11 @@ public class RouteController {
 
       // Get unique direction IDs
       var uniqueDirectionIds = allTrips.stream()
-          .mapToInt(trip -> trip.getDirectionId())
+          .mapToInt(Trip::getDirectionId)
           .distinct()
           .sorted()
           .boxed()
-          .collect(Collectors.toList());
+          .toList();
 
       // Build direction DTOs with friendly names
       var directionDtos = uniqueDirectionIds.stream()
@@ -149,25 +150,25 @@ public class RouteController {
             // Try to get friendly direction name from direction_names_exceptions.txt
             var directionNameOpt = gtfsRepository.findDirectionNameByRouteAndDirection(routeShortName, directionId);
             String friendlyName = directionNameOpt
-                .map(dn -> dn.getDirectionName())
+                .map(DirectionName::getDirectionName)
                 .orElse("Direction " + directionId);
 
             // Get a sample trip headsign for this direction
             String tripHeadsign = allTrips.stream()
                 .filter(trip -> trip.getDirectionId() == directionId)
                 .findFirst()
-                .map(trip -> trip.getTripHeadsign())
+                .map(Trip::getTripHeadsign)
                 .orElse(null);
 
             return new DirectionDto(directionId, friendlyName, tripHeadsign);
           })
           .collect(Collectors.toList());
 
-      logger.info("✅ Successfully returned {} directions for route {}", directionDtos.size(), routeShortName);
+      logger.debug("Successfully returned {} directions for route {}", directionDtos.size(), routeShortName);
       return ResponseEntity.ok(directionDtos);
 
     } catch (Exception e) {
-      logger.error("❌ Error fetching directions for route {}", routeId, e);
+      logger.error("Error fetching directions for route: {}", routeId, e);
       return ResponseEntity.internalServerError().build();
     }
   }
@@ -199,20 +200,20 @@ public class RouteController {
       @PathVariable("routeId") String routeId,
       @PathVariable("directionId") int directionId) {
 
-    logger.info("📡 GET /api/routes/{}/directions/{}/stops - Fetching stops", routeId, directionId);
+    logger.debug("Fetching stops for route {} direction {}", routeId, directionId);
 
     try {
       // Verify the route exists
       var routeOpt = gtfsRepository.findRouteById(routeId);
       if (routeOpt.isEmpty()) {
-        logger.warn("❌ Route not found: {}", routeId);
+        logger.warn("Route not found: {}", routeId);
         return ResponseEntity.notFound().build();
       }
 
       // Verify the direction exists for this route
       var trips = gtfsRepository.findTripsByRouteAndDirection(routeId, directionId);
       if (trips.isEmpty()) {
-        logger.warn("❌ No trips found for route {} direction {}", routeId, directionId);
+        logger.warn("No trips found for route {} direction {}", routeId, directionId);
         return ResponseEntity.notFound().build();
       }
 
@@ -220,7 +221,7 @@ public class RouteController {
       var stops = gtfsRepository.findStopsForRouteAndDirection(routeId, directionId);
 
       if (stops.isEmpty()) {
-        logger.warn("❌ No stops found for route {} direction {}", routeId, directionId);
+        logger.warn("No stops found for route {} direction {}", routeId, directionId);
         return ResponseEntity.notFound().build();
       }
 
@@ -237,13 +238,13 @@ public class RouteController {
           .collect(Collectors.toList());
 
       var route = routeOpt.get();
-      logger.info("✅ Successfully returned {} stops for route {} direction {}",
+      logger.debug("Successfully returned {} stops for route {} direction {}",
           stopDtos.size(), route.getRouteShortName(), directionId);
 
       return ResponseEntity.ok(stopDtos);
 
     } catch (Exception e) {
-      logger.error("❌ Error fetching stops for route {} direction {}", routeId, directionId, e);
+      logger.error("Error fetching stops for route {} direction {}", routeId, directionId, e);
       return ResponseEntity.internalServerError().build();
     }
   }
@@ -288,14 +289,14 @@ public class RouteController {
       @PathVariable("directionId") int directionId,
       @PathVariable("stopId") String stopId) {
 
-    logger.info("📡 GET /api/routes/{}/directions/{}/stops/{}/arrivals - THE MAIN ENDPOINT",
+    logger.debug("Fetching arrivals for route {} direction {} stop {}",
         routeId, directionId, stopId);
 
     try {
       // Step 1: Validate route exists
       var routeOpt = gtfsRepository.findRouteById(routeId);
       if (routeOpt.isEmpty()) {
-        logger.warn("❌ Route not found: {}", routeId);
+        logger.warn("Route not found: {}", routeId);
         return ResponseEntity.notFound().build();
       }
       var route = routeOpt.get();
@@ -303,14 +304,14 @@ public class RouteController {
       // Step 2: Validate direction exists for route
       var trips = gtfsRepository.findTripsByRouteAndDirection(routeId, directionId);
       if (trips.isEmpty()) {
-        logger.warn("❌ No trips found for route {} direction {}", routeId, directionId);
+        logger.warn("No trips found for route {} direction {}", routeId, directionId);
         return ResponseEntity.notFound().build();
       }
 
       // Step 3: Validate stop exists
       var stopOpt = gtfsRepository.findStopById(stopId);
       if (stopOpt.isEmpty()) {
-        logger.warn("❌ Stop not found: {}", stopId);
+        logger.warn("Stop not found: {}", stopId);
         return ResponseEntity.notFound().build();
       }
       var stop = stopOpt.get();
@@ -321,7 +322,7 @@ public class RouteController {
           .anyMatch(routeStop -> routeStop.getStopId().equals(stopId));
       
       if (!stopServesRoute) {
-        logger.warn("❌ Stop {} does not serve route {} direction {}", stopId, routeId, directionId);
+        logger.warn("Stop {} does not serve route {} direction {}", stopId, routeId, directionId);
         return ResponseEntity.notFound().build();
       }
 
@@ -344,14 +345,14 @@ public class RouteController {
       // Step 8: Build response
       var response = new ArrivalsResponseDto(routeInfo, stopInfo, realTimeBuses, scheduledBuses);
 
-      logger.info("✅ Successfully returned arrivals for stop {} on route {} direction {} - {} real-time, {} scheduled",
+      logger.debug("Successfully returned arrivals for stop {} on route {} direction {} - {} real-time, {} scheduled",
           stop.getStopName(), route.getRouteShortName(), directionId,
           realTimeBuses.size(), scheduledBuses.size());
 
       return ResponseEntity.ok(response);
 
     } catch (Exception e) {
-      logger.error("❌ Error fetching arrivals for route {} direction {} stop {}", routeId, directionId, stopId, e);
+      logger.error("Error fetching arrivals for route {} direction {} stop {}", routeId, directionId, stopId, e);
       return ResponseEntity.internalServerError().build();
     }
   }
@@ -397,11 +398,11 @@ public class RouteController {
           })
           .collect(Collectors.toList());
 
-      logger.debug("🚌 Found {} real-time buses approaching stop {}", realTimeBuses.size(), stopId);
+      logger.debug("Found {} real-time buses approaching stop {}", realTimeBuses.size(), stopId);
       return realTimeBuses;
 
     } catch (Exception e) {
-      logger.error("❌ Error getting real-time buses for stop {}", stopId, e);
+      logger.error("Error getting real-time buses for stop {}", stopId, e);
       return new ArrayList<>(); // Return empty list on error
     }
   }
@@ -411,7 +412,7 @@ public class RouteController {
    * Filters by active services using calendar.txt + calendar_dates.txt
    */
   private List<ScheduledBusDto> getScheduledArrivals(String routeId, int directionId, String stopId) {
-    logger.debug("🕐 Getting scheduled arrivals for stop {} in next hour (active services only)", stopId);
+    logger.debug("Getting scheduled arrivals for stop {} in next hour (active services only)", stopId);
     
     try {
       LocalTime currentTime = LocalTime.now();
@@ -423,7 +424,7 @@ public class RouteController {
       // Step 1: Filter by active services using calendar validation
       List<StopTime> activeStopTimes = serviceCalendarService.filterActiveStopTimes(stopTimes);
       
-      logger.debug("📅 Filtered {} stop times to {} active services for stop {}", 
+      logger.debug("Filtered {} stop times to {} active services for stop {}", 
           stopTimes.size(), activeStopTimes.size(), stopId);
       
       // Step 2: Filter for next hour and convert to DTOs
@@ -448,13 +449,13 @@ public class RouteController {
           .limit(20) // Limit to next 20 scheduled arrivals
           .collect(Collectors.toList());
       
-      logger.debug("📋 Found {} active scheduled arrivals at stop {} in next hour", 
+      logger.debug("Found {} active scheduled arrivals at stop {} in next hour", 
           scheduledBuses.size(), stopId);
       
       return scheduledBuses;
       
     } catch (Exception e) {
-      logger.error("❌ Error getting scheduled arrivals for stop {}", stopId, e);
+      logger.error("Error getting scheduled arrivals for stop {}", stopId, e);
       return new ArrayList<>(); // Return empty list on error
     }
   }
@@ -478,24 +479,24 @@ public class RouteController {
    */
   @GetMapping("/{routeId}/vehicles")
   public ResponseEntity<VehicleCorrelationService.VehicleStats> getVehicleStatsForRoute(@PathVariable("routeId") String routeId) {
-    logger.info("📡 GET /api/routes/{}/vehicles - Getting vehicle stats", routeId);
+    logger.debug("Getting vehicle stats for route {}", routeId);
 
     try {
       // Verify route exists
       var routeOpt = gtfsRepository.findRouteById(routeId);
       if (routeOpt.isEmpty()) {
-        logger.warn("❌ Route not found: {}", routeId);
+        logger.warn("Route not found: {}", routeId);
         return ResponseEntity.notFound().build();
       }
 
       var stats = vehicleCorrelationService.getVehicleStatsForRoute(routeId);
       var route = routeOpt.get();
 
-      logger.info("✅ Vehicle stats for route {}: {}", route.getRouteShortName(), stats);
+      logger.debug("Vehicle stats for route {}: {}", route.getRouteShortName(), stats);
       return ResponseEntity.ok(stats);
 
     } catch (Exception e) {
-      logger.error("❌ Error getting vehicle stats for route {}", routeId, e);
+      logger.error("Error getting vehicle stats for route {}", routeId, e);
       return ResponseEntity.internalServerError().build();
     }
   }

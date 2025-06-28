@@ -250,7 +250,7 @@ public class InMemoryGtfsRepository implements GtfsRepository {
   // Data loading operations
   @Override
   public void loadRoutes(List<Route> routes) {
-    logger.info("📦 Loading {} routes into repository", routes.size());
+    logger.debug("Loading {} routes into repository", routes.size());
 
     routesById.clear();
     routesByShortName.clear();
@@ -266,13 +266,13 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     }
 
     lastLoadTime = System.currentTimeMillis();
-    logger.info("✅ Loaded {} routes with {} unique short names",
+    logger.info("Loaded {} routes with {} unique short names",
         routes.size(), routesByShortName.size());
   }
 
   @Override
   public void loadStops(List<Stop> stops) {
-    logger.info("📦 Loading {} stops into repository", stops.size());
+    logger.debug("Loading {} stops into repository", stops.size());
 
     stopsById.clear();
 
@@ -281,12 +281,12 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     }
 
     lastLoadTime = System.currentTimeMillis();
-    logger.info("✅ Loaded {} stops", stops.size());
+    logger.info("Loaded {} stops", stops.size());
   }
 
   @Override
   public void loadTrips(List<Trip> trips) {
-    logger.info("📦 Loading {} trips into repository", trips.size());
+    logger.debug("Loading {} trips into repository", trips.size());
 
     tripsById.clear();
     tripsByRouteId.clear();
@@ -309,12 +309,12 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     }
 
     lastLoadTime = System.currentTimeMillis();
-    logger.info("✅ Loaded {} trips for {} routes", trips.size(), tripsByRouteId.size());
+    logger.info("Loaded {} trips for {} routes", trips.size(), tripsByRouteId.size());
   }
 
   @Override
   public void loadStopTimes(List<StopTime> stopTimes) {
-    logger.info("📦 Loading {} stop times into repository", stopTimes.size());
+    logger.debug("Loading {} stop times into repository", stopTimes.size());
 
     stopTimesByTripId.clear();
     stopTimesByStopId.clear();
@@ -336,12 +336,12 @@ public class InMemoryGtfsRepository implements GtfsRepository {
         tripStopTimes.sort(Comparator.comparingInt(StopTime::getStopSequence)));
 
     lastLoadTime = System.currentTimeMillis();
-    logger.info("✅ Loaded {} stop times for {} trips", stopTimes.size(), stopTimesByTripId.size());
+    logger.info("Loaded {} stop times for {} trips", stopTimes.size(), stopTimesByTripId.size());
   }
 
   @Override
   public void loadShapePoints(List<ShapePoint> shapePoints) {
-    logger.info("📦 Loading {} shape points into repository", shapePoints.size());
+    logger.debug("Loading {} shape points into repository", shapePoints.size());
 
     shapePointsByShapeId.clear();
 
@@ -352,12 +352,12 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     }
 
     lastLoadTime = System.currentTimeMillis();
-    logger.info("✅ Loaded {} shape points for {} shapes", shapePoints.size(), shapePointsByShapeId.size());
+    logger.debug("Loaded {} shape points for {} shapes", shapePoints.size(), shapePointsByShapeId.size());
   }
 
   @Override
   public void loadDirectionNames(List<DirectionName> directionNames) {
-    logger.info("📦 Loading {} direction names into repository", directionNames.size());
+    logger.debug("Loading {} direction names into repository", directionNames.size());
 
     directionNamesByCompositeKey.clear();
     directionNamesByRoute.clear();
@@ -373,12 +373,12 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     }
 
     lastLoadTime = System.currentTimeMillis();
-    logger.info("✅ Loaded {} direction names for {} routes", directionNames.size(), directionNamesByRoute.size());
+    logger.debug("Loaded {} direction names for {} routes", directionNames.size(), directionNamesByRoute.size());
   }
 
   @Override
   public void loadCalendars(List<Calendar> calendars) {
-    logger.info("📦 Loading {} calendars into repository", calendars.size());
+    logger.debug("Loading {} calendars into repository", calendars.size());
 
     calendarsById.clear();
 
@@ -387,12 +387,12 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     }
 
     lastLoadTime = System.currentTimeMillis();
-    logger.info("✅ Loaded {} calendars", calendars.size());
+    logger.debug("Loaded {} calendars", calendars.size());
   }
 
   @Override
   public void loadCalendarDates(List<CalendarDate> calendarDates) {
-    logger.info("📦 Loading {} calendar dates into repository", calendarDates.size());
+    logger.debug("Loading {} calendar dates into repository", calendarDates.size());
 
     calendarDatesByServiceId.clear();
 
@@ -403,7 +403,7 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     }
 
     lastLoadTime = System.currentTimeMillis();
-    logger.info("✅ Loaded {} calendar dates for {} services", calendarDates.size(), calendarDatesByServiceId.size());
+    logger.debug("Loaded {} calendar dates for {} services", calendarDates.size(), calendarDatesByServiceId.size());
   }
 
   @Override

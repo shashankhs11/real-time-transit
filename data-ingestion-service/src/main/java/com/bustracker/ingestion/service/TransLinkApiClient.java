@@ -51,7 +51,7 @@ public class TransLinkApiClient {
         .bodyToMono(byte[].class)
         .doOnNext(responseBytes -> {
           // Add a breakpoint here or log
-          logger.info("Received response bytes: {}", responseBytes.length);
+          logger.debug("Received response bytes: {}", responseBytes.length);
           // You can also inspect 'responseBytes' in the debugger
         })
         .flatMap(this::parseProtobufResponse)
@@ -76,7 +76,7 @@ public class TransLinkApiClient {
 
         GtfsRealtime.FeedMessage feedMessage = GtfsRealtime.FeedMessage.parseFrom(responseBytes);
 
-        logger.info("Successfully parsed GTFS feed - Version: {}, Entities: {}, Timestamp: {}",
+        logger.debug("Successfully parsed GTFS feed - Version: {}, Entities: {}, Timestamp: {}",
             feedMessage.getHeader().getGtfsRealtimeVersion(),
             feedMessage.getEntityCount(),
             feedMessage.getHeader().hasTimestamp() ? feedMessage.getHeader().getTimestamp() : "N/A");

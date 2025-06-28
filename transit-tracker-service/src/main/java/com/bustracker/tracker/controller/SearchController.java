@@ -25,7 +25,8 @@ import java.util.stream.Collectors;
  *    - Fuzzy matching with relevance scoring
  *    - Exact matches ranked highest, partial matches ranked lower
  * 
- * 2. Stop Search (/api/search/stops?q={query}):
+ * 2. Stop Search (/api/search/stops?q={query}&routeId={routeId}&directionId={directionId}):
+ *    - Searches stops within a specific route and direction only
  *    - Searches by stop name substring (e.g., "Princ" finds "Prince Edward St")
  *    - Case-insensitive partial matching
  *    - Word boundary matching gets higher relevance scores
@@ -66,10 +67,10 @@ public class SearchController {
             @RequestParam("q") String query,
             @RequestParam(value = "limit", defaultValue = "10") int limit) {
         
-        logger.info("🔍 Searching routes for query: '{}'", query);
+        logger.debug("Searching routes for query: '{}'", query);
         
         if (query == null || query.trim().length() < MIN_QUERY_LENGTH) {
-            logger.warn("❌ Query too short: '{}'", query);
+            logger.warn("Query too short: '{}'", query);
             return ResponseEntity.badRequest().build();
         }
         
@@ -84,52 +85,70 @@ public class SearchController {
                 .limit(Math.min(limit, MAX_SEARCH_RESULTS))
                 .collect(Collectors.toList());
             
-            logger.info("✅ Found {} route matches for query '{}'", searchResults.size(), query);
+            logger.debug("Found {} route matches for query '{}'", searchResults.size(), query);
             return ResponseEntity.ok(searchResults);
             
         } catch (Exception e) {
-            logger.error("❌ Error searching routes for query '{}'", query, e);
+            logger.error("Error searching routes for query '{}'", query, e);
             return ResponseEntity.internalServerError().build();
         }
     }
 
     /**
-     * GET /api/search/stops?q={query}
-     * Search for stops by name with substring matching
+     * GET /api/search/stops?q={query}&routeId={routeId}&directionId={directionId}
+     * Search for stops by name with substring matching within a specific route and direction
      * 
      * Examples:
-     * - /api/search/stops?q=Princ → Returns "Westbound E 49 Ave @ Prince Edward St"
-     * - /api/search/stops?q=Metrotown → Returns "Metrotown Station @ Bay 11", etc.
-     * - /api/search/stops?q=Fraser → Returns all stops with "Fraser" in the name
+     * - /api/search/stops?q=Princ&routeId=6636&directionId=0 → Returns stops on route 49 direction 0 with "Princ"
+     * - /api/search/stops?q=Metrotown&routeId=6636&directionId=1 → Returns route 49 direction 1 stops with "Metrotown"
+     * - /api/search/stops?q=Fraser&routeId=6636&directionId=0 → Returns route 49 direction 0 stops with "Fraser"
      */
     @GetMapping("/stops")
     public ResponseEntity<List<StopSearchResultDto>> searchStops(
             @RequestParam("q") String query,
+            @RequestParam("routeId") String routeId,
+            @RequestParam("directionId") int directionId,
             @RequestParam(value = "limit", defaultValue = "15") int limit) {
         
-        logger.info("🔍 Searching stops for query: '{}'", query);
+        logger.debug("Searching stops for query: '{}' in route {} direction {}", query, routeId, directionId);
         
         if (query == null || query.trim().length() < MIN_QUERY_LENGTH) {
-            logger.warn("❌ Query too short: '{}'", query);
+            logger.warn("Query too short: '{}'", query);
             return ResponseEntity.badRequest().build();
         }
         
         try {
-            String normalizedQuery = query.trim().toLowerCase();
-            List<Stop> matchingStops = gtfsRepository.searchStopsByName(query);
+            // Step 1: Validate route exists
+            var routeOpt = gtfsRepository.findRouteById(routeId);
+            if (routeOpt.isEmpty()) {
+                logger.warn("Route not found: {}", routeId);
+                return ResponseEntity.notFound().build();
+            }
             
-            List<StopSearchResultDto> searchResults = matchingStops.stream()
+            // Step 2: Get stops for this specific route and direction
+            List<Stop> routeStops = gtfsRepository.findStopsForRouteAndDirection(routeId, directionId);
+            if (routeStops.isEmpty()) {
+                logger.warn("No stops found for route {} direction {}", routeId, directionId);
+                return ResponseEntity.notFound().build();
+            }
+            
+            // Step 3: Filter by query and calculate relevance
+            String normalizedQuery = query.trim().toLowerCase();
+            
+            List<StopSearchResultDto> searchResults = routeStops.stream()
                 .map(stop -> calculateStopRelevance(stop, normalizedQuery))
                 .filter(result -> result.getRelevanceScore() > 0) // Only include matches
                 .sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore())) // Sort by relevance
                 .limit(Math.min(limit, MAX_SEARCH_RESULTS))
                 .collect(Collectors.toList());
             
-            logger.info("✅ Found {} stop matches for query '{}'", searchResults.size(), query);
+            var route = routeOpt.get();
+            logger.debug("Found {} stop matches for query '{}' in route {} direction {}", 
+                searchResults.size(), query, route.getRouteShortName(), directionId);
             return ResponseEntity.ok(searchResults);
             
         } catch (Exception e) {
-            logger.error("❌ Error searching stops for query '{}'", query, e);
+            logger.error("Error searching stops for query '{}' in route {} direction {}", query, routeId, directionId, e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -137,23 +156,32 @@ public class SearchController {
     /**
      * Calculate relevance score for route search
      * Higher scores indicate better matches
+     * Handles padded route numbers (049, 002, etc.)
      */
     private RouteSearchResultDto calculateRouteRelevance(Route route, String normalizedQuery) {
         String routeShortName = route.getRouteShortName().toUpperCase();
         String routeLongName = route.getRouteLongName().toUpperCase();
         
+        // Normalize both query and route name for numeric comparison
+        String normalizedRouteName = normalizeRouteNumber(routeShortName);
+        String normalizedQueryNum = normalizeRouteNumber(normalizedQuery);
+        
         double score = 0.0;
         
+        // Exact match on normalized numbers gets highest score (e.g., "2" matches "002")
+        if (normalizedRouteName.equals(normalizedQueryNum)) {
+            score = 100.0;
+        }
         // Exact match on short name gets highest score
-        if (routeShortName.equals(normalizedQuery)) {
+        else if (routeShortName.equals(normalizedQuery)) {
             score = 100.0;
         }
         // Starts with query gets high score
-        else if (routeShortName.startsWith(normalizedQuery)) {
+        else if (routeShortName.startsWith(normalizedQuery) || normalizedRouteName.startsWith(normalizedQueryNum)) {
             score = 80.0;
         }
         // Contains query in short name gets medium score
-        else if (routeShortName.contains(normalizedQuery)) {
+        else if (routeShortName.contains(normalizedQuery) || normalizedRouteName.contains(normalizedQueryNum)) {
             score = 60.0;
         }
         // Contains query in long name gets lower score
@@ -172,6 +200,24 @@ public class SearchController {
             route.getRouteLongName(),
             score
         );
+    }
+
+    /**
+     * Normalize route numbers by removing leading zeros for comparison
+     * Examples: "049" -> "49", "002" -> "2", "R4" -> "R4"
+     */
+    private String normalizeRouteNumber(String routeName) {
+        if (routeName == null || routeName.isEmpty()) {
+            return routeName;
+        }
+        
+        // If it's all digits, remove leading zeros
+        if (routeName.matches("\\d+")) {
+            return String.valueOf(Integer.parseInt(routeName));
+        }
+        
+        // For alphanumeric routes like "R4", keep as-is
+        return routeName;
     }
 
     /**

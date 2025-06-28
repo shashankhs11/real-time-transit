@@ -36,8 +36,8 @@ public class VehiclePositionConsumer {
       // Store in memory
       storageService.storeVehiclePosition(vehiclePosition);
 
-      // Log every 25th message to avoid spam
-      if (messageCount % 25 == 0) {
+      // Log every 500th message to avoid spam
+      if (messageCount % 500 == 0) {
         logger.info("Consumed & stored message #{}: Vehicle {} on route {} - Storage: {}",
             messageCount,
             vehiclePosition.getVehicleId(),
