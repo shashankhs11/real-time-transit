@@ -62,6 +62,23 @@ public class InMemoryGtfsRepository implements GtfsRepository {
     return routesByShortName.getOrDefault(routeShortName, Collections.emptyList());
   }
 
+  @Override
+  public List<Route> searchRoutesByShortName(String partialName) {
+    if (partialName == null || partialName.trim().isEmpty()) {
+      return Collections.emptyList();
+    }
+    
+    String normalizedQuery = partialName.trim().toUpperCase();
+    
+    return routesById.values().stream()
+        .filter(route -> {
+          String shortName = route.getRouteShortName().toUpperCase();
+          String longName = route.getRouteLongName().toUpperCase();
+          return shortName.contains(normalizedQuery) || longName.contains(normalizedQuery);
+        })
+        .collect(Collectors.toList());
+  }
+
   // Stop operations
   @Override
   public List<Stop> findAllStops() {
@@ -77,6 +94,20 @@ public class InMemoryGtfsRepository implements GtfsRepository {
   public List<Stop> findStopsByName(String stopName) {
     return stopsById.values().stream()
         .filter(stop -> stop.getStopName().toLowerCase().contains(stopName.toLowerCase()))
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public List<Stop> searchStopsByName(String partialName) {
+    if (partialName == null || partialName.trim().isEmpty()) {
+      return Collections.emptyList();
+    }
+    
+    String normalizedQuery = partialName.trim().toLowerCase();
+    
+    return stopsById.values().stream()
+        .filter(stop -> stop.getStopName().toLowerCase().contains(normalizedQuery))
+        .limit(50) // Limit to prevent excessive results
         .collect(Collectors.toList());
   }
 

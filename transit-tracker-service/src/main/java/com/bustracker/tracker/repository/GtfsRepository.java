@@ -23,11 +23,13 @@ public interface GtfsRepository {
   List<Route> findAllRoutes();
   Optional<Route> findRouteById(String routeId);
   List<Route> findRoutesByShortName(String routeShortName);
+  List<Route> searchRoutesByShortName(String partialName); // For efficient route search
 
   // Stop operations
   List<Stop> findAllStops();
   Optional<Stop> findStopById(String stopId);
   List<Stop> findStopsByName(String stopName);
+  List<Stop> searchStopsByName(String partialName); // For efficient stop search
 
   // Trip operations
   List<Trip> findAllTrips();
