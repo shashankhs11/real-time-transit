@@ -1,5 +1,6 @@
 package com.bustracker.tracker.controller;
 
+import com.bustracker.tracker.domain.DirectionName;
 import com.bustracker.tracker.dto.RouteDto;
 import com.bustracker.tracker.dto.DirectionDto;
 import com.bustracker.tracker.dto.StopDto;
@@ -327,7 +328,7 @@ public class RouteController {
       // Step 4: Get friendly direction name
       var directionNameOpt = gtfsRepository.findDirectionNameByRouteAndDirection(route.getRouteShortName(), directionId);
       String friendlyDirectionName = directionNameOpt
-          .map(dn -> dn.getDirectionName())
+          .map(DirectionName::getDirectionName)
           .orElse("Direction " + directionId);
 
       // Step 5: Build route and stop info for response
