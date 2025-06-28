@@ -6,26 +6,15 @@ spring:
     name: transit-tracker-service
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: transit-tracker-group
       auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
       properties:
-        security.protocol: SASL_SSL
-        sasl.mechanism: PLAIN
-        sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_API_KEY}" password="${KAFKA_API_SECRET}";
         enable.auto.commit: true
         auto.commit.interval.ms: 1000
-
-    security:
-      protocol: SASL_SSL
-
-    sasl:
-      mechanism: PLAIN
-      jaas:
-        config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_API_KEY}" password="${KAFKA_API_SECRET}";
 
 
 # Kafka Topic Configuration
