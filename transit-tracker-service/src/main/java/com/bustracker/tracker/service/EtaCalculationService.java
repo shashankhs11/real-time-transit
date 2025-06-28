@@ -21,7 +21,7 @@ public class EtaCalculationService {
   private static final Logger logger = LoggerFactory.getLogger(EtaCalculationService.class);
 
   // Average bus speed assumptions for Vancouver (in km/h)
-  private static final double AVERAGE_SPEED_KMH = 25.0; // Conservative city speed
+  private static final double AVERAGE_SPEED_KMH = 35.0; // Conservative city speed
   private static final double AVERAGE_SPEED_MS = AVERAGE_SPEED_KMH / 3.6; // Convert to m/s
 
   // Earth's radius in meters for Haversine calculation
