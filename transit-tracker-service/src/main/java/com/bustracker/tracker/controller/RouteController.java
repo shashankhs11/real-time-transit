@@ -20,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,6 +35,9 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/routes")
 @CrossOrigin(origins = "*") // Allow frontend access
 public class RouteController {
+
+  // Vancouver timezone for GTFS data
+  private static final ZoneId VANCOUVER_TIMEZONE = ZoneId.of("America/Vancouver");
 
   private static final Logger logger = LoggerFactory.getLogger(RouteController.class);
 
@@ -415,7 +420,7 @@ public class RouteController {
     logger.debug("Getting scheduled arrivals for stop {} in next hour (active services only)", stopId);
     
     try {
-      LocalTime currentTime = LocalTime.now();
+      LocalTime currentTime = LocalTime.now(VANCOUVER_TIMEZONE);
       LocalTime endTime = currentTime.plusHours(1); // Show next 1 hour of scheduled arrivals
       
       // Get all stop times for this stop

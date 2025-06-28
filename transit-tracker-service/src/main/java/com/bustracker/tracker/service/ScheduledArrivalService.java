@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +18,9 @@ import java.util.stream.Collectors;
 @Service
 public class ScheduledArrivalService {
 
+    // Vancouver timezone for GTFS data
+    private static final ZoneId VANCOUVER_TIMEZONE = ZoneId.of("America/Vancouver");
+    
     private static final Logger logger = LoggerFactory.getLogger(ScheduledArrivalService.class);
     
     private final GtfsRepository gtfsRepository;
@@ -78,12 +82,20 @@ public class ScheduledArrivalService {
      * @return DelayInfo with delay calculation
      */
     public DelayInfo calculateDelay(ScheduledArrival scheduledArrival, int realTimeEtaSeconds) {
-        LocalTime now = LocalTime.now();
+        LocalTime now = LocalTime.now(VANCOUVER_TIMEZONE);
         LocalTime scheduledTime = scheduledArrival.getScheduledArrival();
         LocalTime predictedArrival = now.plusSeconds(realTimeEtaSeconds);
         
         // Calculate delay in minutes (positive = late, negative = early)
         long delayMinutes = ChronoUnit.MINUTES.between(scheduledTime, predictedArrival);
+        
+        // Handle cross-midnight boundary issues (GTFS times can span midnight)
+        // If delay is more than 12 hours, it's likely a cross-midnight calculation error
+        if (delayMinutes > 12 * 60) {
+            delayMinutes -= 24 * 60;  // Subtract 24 hours
+        } else if (delayMinutes < -12 * 60) {
+            delayMinutes += 24 * 60;  // Add 24 hours
+        }
         
         // Determine delay status
         DelayStatus status;

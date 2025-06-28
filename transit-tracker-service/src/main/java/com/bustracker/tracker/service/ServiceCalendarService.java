@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -18,6 +19,9 @@ import java.util.stream.Collectors;
 @Service
 public class ServiceCalendarService {
 
+    // Vancouver timezone for GTFS data
+    private static final ZoneId VANCOUVER_TIMEZONE = ZoneId.of("America/Vancouver");
+    
     private static final Logger logger = LoggerFactory.getLogger(ServiceCalendarService.class);
     
     private final GtfsRepository gtfsRepository;
@@ -65,7 +69,7 @@ public class ServiceCalendarService {
      * @return true if service is active today
      */
     public boolean isServiceActiveToday(String serviceId) {
-        return isServiceActiveOnDate(serviceId, LocalDate.now());
+        return isServiceActiveOnDate(serviceId, LocalDate.now(VANCOUVER_TIMEZONE));
     }
 
     /**
@@ -74,7 +78,7 @@ public class ServiceCalendarService {
      * @return List of trip IDs with active services
      */
     public List<String> filterActiveTripIds(List<String> tripIds) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(VANCOUVER_TIMEZONE);
         
         return tripIds.stream()
             .filter(tripId -> {
@@ -102,7 +106,7 @@ public class ServiceCalendarService {
      * @return List of stop times with active services
      */
     public List<StopTime> filterActiveStopTimes(List<StopTime> stopTimes) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(VANCOUVER_TIMEZONE);
         
         return stopTimes.stream()
             .filter(stopTime -> {
@@ -130,7 +134,7 @@ public class ServiceCalendarService {
      * @return ServiceStats with active/inactive service counts
      */
     public ServiceStats getServiceStats() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(VANCOUVER_TIMEZONE);
         
         List<Calendar> allCalendars = gtfsRepository.findAllCalendars();
         
