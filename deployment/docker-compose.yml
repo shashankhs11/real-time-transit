@@ -1,3 +1,6 @@
+# Base Docker Compose file with shared services
+# This file contains the Kafka infrastructure and base service definitions
+
 services:
   # Zookeeper for Kafka
   zookeeper:
@@ -68,7 +71,7 @@ services:
   # Data Ingestion Service
   data-ingestion-service:
     build:
-      context: .
+      context: ..
       dockerfile: data-ingestion-service/Dockerfile
     container_name: transit-data-ingestion
     depends_on:
@@ -98,7 +101,7 @@ services:
   # Transit Tracker Service
   transit-tracker-service:
     build:
-      context: .
+      context: ..
       dockerfile: transit-tracker-service/Dockerfile
     container_name: transit-tracker
     depends_on:
@@ -113,7 +116,7 @@ services:
       JAVA_OPTS: "-Xmx2g -Xms1g -server"
       SPRING_PROFILES_ACTIVE: "local"
     volumes:
-      - ./google_transit.zip:/app/data/google_transit.zip:ro
+      - ../google_transit.zip:/app/data/google_transit.zip:ro
     networks:
       - transit-network
     restart: unless-stopped

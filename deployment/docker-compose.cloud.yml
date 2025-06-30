@@ -1,0 +1,27 @@
+# Production-like environment using Confluent Cloud
+# Usage: docker-compose -f docker-compose.base.yml -f docker-compose.cloud.yml up
+
+services:
+  data-ingestion-service:
+    environment:
+      SPRING_PROFILES_ACTIVE: "prod"
+      # Confluent Cloud Kafka settings (from .env file)
+      KAFKA_BOOTSTRAP_SERVERS: "${KAFKA_BOOTSTRAP_SERVERS}"
+      KAFKA_API_KEY: "${KAFKA_API_KEY}"
+      KAFKA_API_SECRET: "${KAFKA_API_SECRET}"
+      # TransLink API (from .env file)
+      TRANSLINK_API_KEY: "${TRANSLINK_API_KEY}"
+      # Production settings
+      POLLING_ENABLED: "${POLLING_ENABLED:-true}"
+      POLLING_INTERVAL_SECONDS: "${POLLING_INTERVAL_SECONDS:-30}"
+      JAVA_OPTS: "${DATA_INGESTION_JAVA_OPTS:--Xmx1g -Xms512m -server -XX:+UseG1GC}"
+
+  transit-tracker-service:
+    environment:
+      SPRING_PROFILES_ACTIVE: "prod"
+      # Confluent Cloud Kafka settings (from .env file)
+      KAFKA_BOOTSTRAP_SERVERS: "${KAFKA_BOOTSTRAP_SERVERS}"
+      KAFKA_API_KEY: "${KAFKA_API_KEY}"
+      KAFKA_API_SECRET: "${KAFKA_API_SECRET}"
+      # Production settings
+      JAVA_OPTS: "${TRANSIT_TRACKER_JAVA_OPTS:--Xmx2g -Xms1g -server -XX:+UseG1GC}"

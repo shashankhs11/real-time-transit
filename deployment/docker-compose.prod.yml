@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   # Data Ingestion Service
   data-ingestion-service:
     build:
-      context: .
+      context: ..
       dockerfile: data-ingestion-service/Dockerfile
     container_name: transit-data-ingestion
     ports:
@@ -17,7 +15,7 @@ services:
       POLLING_ENABLED: "${POLLING_ENABLED:-true}"
       POLLING_INTERVAL_SECONDS: "${POLLING_INTERVAL_SECONDS:-30}"
       JAVA_OPTS: "${DATA_INGESTION_JAVA_OPTS:--Xmx2g -Xms1g -server}"
-      SPRING_PROFILES_ACTIVE: "production"
+      SPRING_PROFILES_ACTIVE: "prod"
     networks:
       - transit-network
     restart: unless-stopped
@@ -36,7 +34,7 @@ services:
   # Transit Tracker Service
   transit-tracker-service:
     build:
-      context: .
+      context: ..
       dockerfile: transit-tracker-service/Dockerfile
     container_name: transit-tracker
     ports:
@@ -46,9 +44,9 @@ services:
       KAFKA_API_KEY: "${KAFKA_API_KEY}"
       KAFKA_API_SECRET: "${KAFKA_API_SECRET}"
       JAVA_OPTS: "${TRANSIT_TRACKER_JAVA_OPTS:--Xmx4g -Xms2g -server}"
-      SPRING_PROFILES_ACTIVE: "production"
+      SPRING_PROFILES_ACTIVE: "prod"
     volumes:
-      - ./google_transit.zip:/app/data/google_transit.zip:ro
+      - ../google_transit.zip:/app/data/google_transit.zip:ro
       - transit-logs:/app/logs
     networks:
       - transit-network

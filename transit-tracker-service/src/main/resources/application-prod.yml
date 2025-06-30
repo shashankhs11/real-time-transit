@@ -1,0 +1,53 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: transit-tracker-group
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+      properties:
+        security.protocol: SASL_SSL
+        sasl.mechanism: PLAIN
+        sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_API_KEY}" password="${KAFKA_API_SECRET}";
+        enable.auto.commit: true
+        auto.commit.interval.ms: 1000
+
+    security:
+      protocol: SASL_SSL
+
+    sasl:
+      mechanism: PLAIN
+      jaas:
+        config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_API_KEY}" password="${KAFKA_API_SECRET}";
+
+# Kafka Topic Configuration
+kafka:
+  topics:
+    vehicle-positions: vehicle-positions
+
+# WebSocket Configuration
+websocket:
+  endpoint: /ws
+  # allowed-origins: ${ALLOWED_ORIGINS:https://yourdomain.com}
+
+# # Management and Monitoring (production settings)
+# management:
+#   endpoints:
+#     web:
+#       exposure:
+#         include: health,info
+#   endpoint:
+#     health:
+#       show-details: when-authorized
+
+# Logging Configuration (production settings)
+logging:
+  level:
+    com.bustracker.tracker: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.springframework.web.socket: INFO
+    root: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
