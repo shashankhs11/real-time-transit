@@ -1,0 +1,59 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+
+    # Confluent Cloud Security Configuration
+    security:
+      protocol: SASL_SSL
+
+    sasl:
+      mechanism: PLAIN
+      jaas:
+        config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_API_KEY}" password="${KAFKA_API_SECRET}";
+
+# TransLink GTFS API Configuration (same for all environments)
+translink:
+  api:
+    base-url: https://gtfsapi.translink.ca/v3
+    api-key: ${TRANSLINK_API_KEY}
+    endpoints:
+      positions: /gtfsposition
+    polling:
+      interval-seconds: 30
+      initial-delay-seconds: 10
+
+# Kafka Topic Configuration
+kafka:
+  topics:
+    vehicle-positions: vehicle-positions
+
+# # Management and Monitoring (production settings)
+# management:
+#   endpoints:
+#     web:
+#       exposure:
+#         include: health,info
+#   endpoint:
+#     health:
+#       show-details: when-authorized
+
+# Logging Configuration (production settings)
+logging:
+  level:
+    com.bustracker.ingestion.service.VehicleDataPollingService: INFO
+    com.bustracker.ingestion.service.VehiclePositionProducer: INFO
+    com.bustracker.ingestion.service.TransLinkApiClient: INFO
+    com.bustracker: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    root: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

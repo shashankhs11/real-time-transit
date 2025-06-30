@@ -18,8 +18,14 @@ public class KafkaConfig {
   @Value("${spring.kafka.bootstrap-servers}")
   private String bootstrapServers;
 
-  @Value("${spring.kafka.sasl.jaas.config}")
+  @Value("${spring.kafka.sasl.jaas.config:#{null}}")
   private String jaasConfig;
+
+  @Value("${spring.kafka.security.protocol:PLAINTEXT}")
+  private String securityProtocol;
+
+  @Value("${spring.kafka.sasl.mechanism:#{null}}")
+  private String saslMechanism;
 
   @Bean
   public ProducerFactory<String, byte[]> producerFactory() {
@@ -36,10 +42,14 @@ public class KafkaConfig {
     configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
     configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
 
-    // Confluent Cloud Security configuration
-    configProps.put("security.protocol", "SASL_SSL");
-    configProps.put("sasl.mechanism", "PLAIN");
-    configProps.put("sasl.jaas.config", jaasConfig);
+    // Security configuration - only add if not PLAINTEXT
+    configProps.put("security.protocol", securityProtocol);
+    if (!"PLAINTEXT".equals(securityProtocol) && saslMechanism != null) {
+      configProps.put("sasl.mechanism", saslMechanism);
+      if (jaasConfig != null) {
+        configProps.put("sasl.jaas.config", jaasConfig);
+      }
+    }
 
     return new DefaultKafkaProducerFactory<>(configProps);
   }

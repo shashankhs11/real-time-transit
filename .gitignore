@@ -17,13 +17,16 @@ Thumbs.db
 *.log
 logs/
 
-# Security - NEVER commit these!
+# Security stuff NEVER commit these!
 *.env
 .env
 .env.*
 application-local.yml
 application-production.yml
 application-secrets.yml
+
+# Allowing env.template to be committed
+!env.template
 
 # Maven
 .mvn/wrapper/maven-wrapper.jar
@@ -35,3 +38,6 @@ gradle/wrapper/gradle-wrapper.jar
 
 # Spring Boot
 HELP.md
+
+# Claude
+.claude/

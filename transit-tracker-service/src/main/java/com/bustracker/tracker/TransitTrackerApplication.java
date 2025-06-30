@@ -34,7 +34,13 @@ public class TransitTrackerApplication implements CommandLineRunner {
   private void loadGtfsData() {
     logger.info("Starting GTFS data loading process");
     
-    String zipPath = "google_transit.zip";
+    String zipPath = System.getenv("GTFS_ZIP_PATH");
+    if (zipPath == null || zipPath.trim().isEmpty()) {
+      zipPath = "google_transit.zip";
+      logger.debug("GTFS_ZIP_PATH environment variable not set, using default: {}", zipPath);
+    } else {
+      logger.debug("Using GTFS_ZIP_PATH from environment: {}", zipPath);
+    }
     
     try {
       logger.info("Loading GTFS dataset from: {}", zipPath);

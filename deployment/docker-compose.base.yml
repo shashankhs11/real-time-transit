@@ -1,0 +1,56 @@
+# Base services without Kafka infrastructure
+# Used for cloud deployments where Kafka is external (Confluent Cloud)
+
+services:
+  # Data Ingestion Service
+  data-ingestion-service:
+    build:
+      context: ..
+      dockerfile: data-ingestion-service/Dockerfile
+    container_name: transit-data-ingestion
+    ports:
+      - "8081:8081"
+    networks:
+      - transit-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  # Transit Tracker Service
+  transit-tracker-service:
+    build:
+      context: ..
+      dockerfile: transit-tracker-service/Dockerfile
+    container_name: transit-tracker
+    ports:
+      - "8082:8082"
+    volumes:
+      - ../google_transit.zip:/app/data/google_transit.zip:ro
+    networks:
+      - transit-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+networks:
+  transit-network:
+    driver: bridge
+    name: transit-network
