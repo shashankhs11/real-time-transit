@@ -24,8 +24,7 @@ A real-time vehicle tracking system that ingests GTFS data from TransLink's API 
 ├── docs/                      # Documentation
 │   ├── DEPLOYMENT.md          # Comprehensive deployment guide
 │   ├── API_DOCUMENTATION.md   # API documentation
-│   ├── DEPLOYMENT_GUIDE.md    # Additional deployment info
-│   └── CLAUDE.md              # Project instructions
+│   └── DEPLOYMENT_GUIDE.md    # Additional deployment info
 ├── data-ingestion-service/    # Data ingestion microservice
 ├── transit-tracker-service/   # Transit tracking microservice
 └── shared-models/             # Common models and protobuf
