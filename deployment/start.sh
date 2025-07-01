@@ -86,7 +86,7 @@ execute_action() {
             if [[ $ENVIRONMENT == "local" ]]; then
                 echo -e "${YELLOW}This will start Kafka UI at http://localhost:8080${NC}"
             fi
-            docker-compose --env-file ../.env $compose_files up -d
+            docker compose --env-file ../.env $compose_files up -d
             echo -e "${GREEN}Services started successfully!${NC}"
             echo
             echo -e "${BLUE}Service URLs:${NC}"
@@ -98,20 +98,20 @@ execute_action() {
             ;;
         down)
             echo -e "${YELLOW}Stopping $ENVIRONMENT environment...${NC}"
-            docker-compose --env-file ../.env $compose_files down
+            docker compose --env-file ../.env $compose_files down
             echo -e "${GREEN}Services stopped successfully!${NC}"
             ;;
         logs)
             echo -e "${BLUE}Showing logs for $ENVIRONMENT environment...${NC}"
-            docker-compose --env-file ../.env $compose_files logs -f
+            docker compose --env-file ../.env $compose_files logs -f
             ;;
         status)
             echo -e "${BLUE}Service status for $ENVIRONMENT environment:${NC}"
-            docker-compose --env-file ../.env $compose_files ps
+            docker compose --env-file ../.env $compose_files ps
             ;;
         build)
             echo -e "${YELLOW}Building services for $ENVIRONMENT environment...${NC}"
-            docker-compose --env-file ../.env $compose_files build
+            docker compose --env-file ../.env $compose_files build
             echo -e "${GREEN}Build completed successfully!${NC}"
             ;;
         *)

@@ -1,0 +1,264 @@
+name: Deploy to Oracle VM
+
+on:
+  push:
+    branches:
+      - deploy
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force complete rebuild (no cache)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  VM_HOST: "170.9.50.175"
+  VM_USER: "opc"
+  PROJECT_PATH: "/home/opc/projects/real-time-transit"
+  DEPLOYMENT_TIMEOUT: "300"
+
+jobs:
+  deploy:
+    name: Deploy to Oracle VM
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.VM_SSH_KEY }}
+
+      - name: Pre-deployment validation
+        run: |
+          echo "Pre-deployment validation starting..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${{ env.VM_USER }}@${{ env.VM_HOST }} << 'EOF'
+            set -e
+            echo "SSH connection successful"
+            
+            # Check if project directory exists
+            if [ ! -d "${{ env.PROJECT_PATH }}" ]; then
+              echo "Project directory not found: ${{ env.PROJECT_PATH }}"
+              exit 1
+            fi
+            echo "Project directory exists"
+            
+            # Check Docker is running
+            if ! docker info > /dev/null 2>&1; then
+              echo "Docker is not running"
+              exit 1
+            fi
+            echo "Docker is running"
+            
+            # Check disk space (minimum 2GB free)
+            AVAILABLE_SPACE=$(df ${{ env.PROJECT_PATH }} | awk 'NR==2{printf "%.1f", $4/1024/1024}')
+            if [ "$(echo "$AVAILABLE_SPACE < 2.0" | bc)" -eq 1 ]; then
+              echo "Insufficient disk space. Available: ${AVAILABLE_SPACE}GB, Required: 2GB"
+              exit 1
+            fi
+            echo "Sufficient disk space available: ${AVAILABLE_SPACE}GB"
+            
+            # Check if git repo is accessible
+            cd ${{ env.PROJECT_PATH }}
+            if ! git status > /dev/null 2>&1; then
+              echo "Git repository is not accessible"
+              exit 1
+            fi
+            echo "Git repository is accessible"
+          EOF
+          echo "Pre-deployment validation completed"
+
+      - name: Backup current deployment
+        run: |
+          echo "Creating backup of current deployment..."
+          ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.PROJECT_PATH }}
+            
+            # Create backup directory with timestamp
+            BACKUP_DIR="backups/deployment-$(date +%Y%m%d-%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+            
+            # Backup current git commit hash
+            git rev-parse HEAD > "$BACKUP_DIR/commit-hash.txt"
+            echo "Current commit backed up: $(cat $BACKUP_DIR/commit-hash.txt)"
+            
+            # Keep only last 5 backups
+            cd backups
+            ls -t | tail -n +6 | xargs -r rm -rf
+            echo "🧹 Old backups cleaned up"
+          EOF
+          echo "Backup completed"
+
+      - name: Deploy application
+        run: |
+          echo "Starting deployment process..."
+          ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_HOST }} << 'EOF'
+            set -e
+            cd ${{ env.PROJECT_PATH }}
+            
+            echo "Pulling latest changes..."
+            git fetch origin deploy
+            git reset --hard origin/deploy
+            echo "Code updated to latest version"
+            
+            echo "Stopping current services..."
+            cd deployment
+            timeout ${{ env.DEPLOYMENT_TIMEOUT }} ./start.sh cloud down || {
+              echo "Graceful shutdown timed out, forcing stop..."
+              docker compose -f docker-compose.base.yml -f docker-compose.cloud.yml down --timeout 30
+            }
+            echo "Services stopped"
+            
+            echo "🧹 Cleaning up old containers and images..."
+            docker system prune -f
+            
+            # Force rebuild if requested or if it's the first deployment of the day
+            FORCE_REBUILD="${{ inputs.force_rebuild }}"
+            LAST_DEPLOY=$(date -d "$(docker images --format 'table {{.CreatedAt}}' transit-tracker-service 2>/dev/null | tail -n1 | cut -d' ' -f1-2)" +%s 2>/dev/null || echo 0)
+            TODAY_START=$(date -d "today 00:00:00" +%s)
+            
+            if [ "$FORCE_REBUILD" = "true" ] || [ "$LAST_DEPLOY" -lt "$TODAY_START" ]; then
+              echo "Building with fresh cache..."
+              ./start.sh cloud build --no-cache
+            else
+              echo "Building services..."
+              ./start.sh cloud build
+            fi
+            
+            echo "Starting services..."
+            timeout ${{ env.DEPLOYMENT_TIMEOUT }} ./start.sh cloud up
+            echo "Services started"
+          EOF
+          echo "Deployment completed"
+
+      - name: Health check and verification
+        run: |
+          echo "Starting health checks..."
+          ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_HOST }} << 'EOF'
+            set -e
+            
+            # Wait for services to fully start
+            echo "Waiting for services to start..."
+            sleep 30
+            
+            # Check container status
+            echo "Checking container status..."
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            
+            # Function to test endpoint with retries
+            test_endpoint() {
+              local url=$1
+              local description=$2
+              local max_attempts=10
+              local attempt=1
+              
+              echo "Testing $description..."
+              while [ $attempt -le $max_attempts ]; do
+                if curl -sf "$url" > /dev/null 2>&1; then
+                  echo "$description is responding"
+                  return 0
+                fi
+                echo "Attempt $attempt/$max_attempts failed, retrying in 10s..."
+                sleep 10
+                attempt=$((attempt + 1))
+              done
+              echo "$description failed after $max_attempts attempts"
+              return 1
+            }
+            
+            # Test health endpoints
+            test_endpoint "http://localhost:8082/actuator/health" "Transit Tracker Health"
+            test_endpoint "http://localhost:8081/actuator/health" "Data Ingestion Health"
+            
+            # Test API endpoints
+            test_endpoint "http://localhost:8082/api/routes" "Routes API"
+            
+            # Test feedback API with validation
+            echo "Testing Feedback API validation..."
+            RESPONSE=$(curl -s -w "%{http_code}" -X POST http://localhost:8082/api/feedback \
+              -H "Content-Type: application/json" \
+              -d '{"feedback": ""}' -o /tmp/feedback_test.json)
+            
+            if [ "$RESPONSE" = "400" ]; then
+              echo "Feedback API validation is working correctly"
+            else
+              echo "Feedback API validation test failed (HTTP $RESPONSE)"
+              cat /tmp/feedback_test.json
+              exit 1
+            fi
+            
+            # Test valid feedback submission
+            echo "Testing valid feedback submission..."
+            RESPONSE=$(curl -s -w "%{http_code}" -X POST http://localhost:8082/api/feedback \
+              -H "Content-Type: application/json" \
+              -d '{"feedback": "CI/CD deployment test - $(date)"}' -o /tmp/feedback_success.json)
+            
+            if [ "$RESPONSE" = "200" ]; then
+              echo "Feedback API is working correctly"
+            else
+              echo "Feedback API test failed (HTTP $RESPONSE)"
+              cat /tmp/feedback_success.json
+              exit 1
+            fi
+            
+            echo "All health checks passed!"
+          EOF
+
+      - name: Post-deployment summary
+        if: always()
+        run: |
+          echo "Deployment Summary"
+          echo "===================="
+          echo "Deployment Time: $(date)"
+          echo "Branch: deploy"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "Status: SUCCESS"
+            echo "Application URL: http://${{ env.VM_HOST }}:8082"
+            echo "Health Check: http://${{ env.VM_HOST }}:8082/actuator/health"
+            echo "Feedback API: http://${{ env.VM_HOST }}:8082/api/feedback"
+          else
+            echo "Status: FAILED"
+            echo "Check the logs above for error details"
+          fi
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Deployment failed, attempting rollback..."
+          ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_HOST }} << 'EOF' || echo "Rollback failed - manual intervention required"
+            set -e
+            cd ${{ env.PROJECT_PATH }}
+            
+            # Get the latest backup
+            LATEST_BACKUP=$(ls -t backups/ | head -n1)
+            if [ -n "$LATEST_BACKUP" ]; then
+              echo "Rolling back to: $LATEST_BACKUP"
+              
+              # Get the commit hash from backup
+              BACKUP_COMMIT=$(cat "backups/$LATEST_BACKUP/commit-hash.txt")
+              echo "Restoring to commit: $BACKUP_COMMIT"
+              
+              # Restore code
+              git reset --hard "$BACKUP_COMMIT"
+              
+              # Restart services
+              cd deployment
+              ./start.sh cloud down
+              ./start.sh cloud up
+              
+              echo "Rollback completed"
+            else
+              echo "No backup found for rollback"
+              exit 1
+            fi
+          EOF
