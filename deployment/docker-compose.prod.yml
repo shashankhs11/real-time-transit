@@ -45,6 +45,13 @@ services:
       KAFKA_API_SECRET: "${KAFKA_API_SECRET}"
       JAVA_OPTS: "${TRANSIT_TRACKER_JAVA_OPTS:--Xmx4g -Xms2g -server}"
       SPRING_PROFILES_ACTIVE: "prod"
+      # Email Configuration
+      SMTP_HOST: "${SMTP_HOST}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_USERNAME: "${SMTP_USERNAME}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      FEEDBACK_EMAIL_TO: "${FEEDBACK_EMAIL_TO}"
+      FEEDBACK_EMAIL_FROM: "${FEEDBACK_EMAIL_FROM}"
     volumes:
       - ../google_transit.zip:/app/data/google_transit.zip:ro
       - transit-logs:/app/logs

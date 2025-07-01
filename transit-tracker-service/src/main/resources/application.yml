@@ -16,6 +16,22 @@ spring:
         enable.auto.commit: true
         auto.commit.interval.ms: 1000
 
+  # Email Configuration for Feedback
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 3000
+          writetimeout: 5000
+
 
 # Kafka Topic Configuration
 kafka:
@@ -37,6 +53,13 @@ management:
     health:
       show-details: always
 
+# Feedback Email Settings
+feedback:
+  email:
+    to: ${FEEDBACK_EMAIL_TO}
+    from: ${FEEDBACK_EMAIL_FROM}
+    subject: "New Feedback - Real-Time Transit App"
+
 # Logging Configuration
 logging:
   level:
@@ -44,6 +67,7 @@ logging:
     org.springframework.kafka: WARN
     org.apache.kafka: WARN
     org.springframework.web.socket: INFO
+    org.springframework.mail: INFO
     root: INFO
   pattern:
     console: "%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

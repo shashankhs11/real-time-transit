@@ -21,6 +21,22 @@ spring:
       jaas:
         config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_API_KEY}" password="${KAFKA_API_SECRET}";
 
+  # Email Configuration for Feedback (Production)
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 3000
+          writetimeout: 5000
+
 # Kafka Topic Configuration
 kafka:
   topics:
@@ -41,6 +57,13 @@ websocket:
 #     health:
 #       show-details: when-authorized
 
+# Feedback Email Settings (Production)
+feedback:
+  email:
+    to: ${FEEDBACK_EMAIL_TO}
+    from: ${FEEDBACK_EMAIL_FROM}
+    subject: "New Feedback - Real-Time Transit App [PROD]"
+
 # Logging Configuration (production settings)
 logging:
   level:
@@ -48,6 +71,7 @@ logging:
     org.springframework.kafka: WARN
     org.apache.kafka: WARN
     org.springframework.web.socket: INFO
+    org.springframework.mail: WARN
     root: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
