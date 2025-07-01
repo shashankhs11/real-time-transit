@@ -28,6 +28,13 @@ services:
       KAFKA_API_SECRET: ""  # Not needed for local Kafka
       # Development settings
       JAVA_OPTS: "-Xmx1g -Xms512m -server -XX:+UseG1GC"
+      # Email Config for Feedback
+      SMTP_HOST: "${SMTP_HOST}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_USERNAME: "${SMTP_USERNAME}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      FEEDBACK_EMAIL_TO: "${FEEDBACK_EMAIL_TO}"
+      FEEDBACK_EMAIL_FROM: "${FEEDBACK_EMAIL_FROM}"
     depends_on:
       kafka:
         condition: service_healthy

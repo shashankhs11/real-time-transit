@@ -25,3 +25,10 @@ services:
       KAFKA_API_SECRET: "${KAFKA_API_SECRET}"
       # Production settings
       JAVA_OPTS: "${TRANSIT_TRACKER_JAVA_OPTS:--Xmx2g -Xms1g -server -XX:+UseG1GC}"
+      # Email Config for Feedback
+      SMTP_HOST: "${SMTP_HOST}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_USERNAME: "${SMTP_USERNAME}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      FEEDBACK_EMAIL_TO: "${FEEDBACK_EMAIL_TO}"
+      FEEDBACK_EMAIL_FROM: "${FEEDBACK_EMAIL_FROM}"
