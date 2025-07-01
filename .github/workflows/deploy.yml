@@ -160,7 +160,7 @@ jobs:
               local attempt=1
               
               echo "Testing $description..."
-              while $attempt -le $max_attempts ]; do
+              while [ $attempt -le $max_attempts ]; do
                 if curl -sf "$url" > /dev/null 2>&1; then
                   echo "$description is responding"
                   return 0
